@@ -38,27 +38,36 @@ Son dos piezas independientes:
 > La clave `anon` viaja en el navegador de cualquier visitante y eso es normal:
 > quién puede escribir lo decide el RLS del paso 2, no la clave.
 
-5. **Authentication → URL Configuration**: poner la dirección pública del paso 2
-   como *Site URL* y agregarla también en *Redirect URLs*.
+5. **Authentication → URL Configuration**: poner
+   `https://gsilvestre-pixel.github.io/catty/` como *Site URL* y agregarla
+   también en *Redirect URLs*. Sin esto, el enlace de acceso que reciben los
+   editores por correo no los devuelve a la agenda.
 
-## Paso 2 — Dirección pública
+## Paso 2 — Dirección pública (GitHub Pages)
 
-Este repositorio es **privado**, y GitHub Pages solo publica repositorios
-privados en los planes de pago. Dos caminos, ambos gratuitos:
+GitHub Pages publica repositorios privados solo en los planes de pago, así que
+el repositorio debe hacerse público. Se publica únicamente el código de la
+aplicación: **las visitas viven en Supabase, no en el repositorio**, y
+`config.js` solo lleva la clave `anon`, que es pública por diseño.
 
-**A. Hacer público el repositorio y usar GitHub Pages**
-   *Settings → General → Danger Zone → Change visibility → Public*, y luego
-   *Settings → Pages → Source: Deploy from a branch →* rama de este trabajo,
-   carpeta `/ (root)`. El enlace queda como
-   `https://gsilvestre-pixel.github.io/catty/`.
-   Se publica solo el código de la aplicación: las visitas viven en Supabase,
-   no en el repositorio.
+1. **Settings → General → Danger Zone → Change repository visibility →
+   Make public**, y confirmar escribiendo el nombre del repositorio.
+2. **Settings → Pages → Build and deployment**
+   - *Source*: **Deploy from a branch**
+   - *Branch*: `claude/entity-visits-management-h90pe8` (es la rama por
+     defecto del repositorio) y carpeta **`/ (root)`** → **Save**.
+3. Esperar uno o dos minutos. El enlace queda en:
 
-**B. Mantener el repositorio privado y publicar con Cloudflare Pages**
-   Crear una cuenta en [pages.cloudflare.com](https://pages.cloudflare.com),
-   *Create a project → Connect to Git*, autorizar el repositorio, dejar el
-   framework en **None** y el directorio de salida en `/`. El enlace queda como
-   `https://catty.pages.dev`. (Netlify y Vercel funcionan igual.)
+   ```
+   https://gsilvestre-pixel.github.io/catty/
+   ```
+
+Ese es el enlace para el equipo. Cada vez que se actualice la rama, el sitio se
+republica solo.
+
+> Si más adelante prefiere mantener el repositorio privado, el mismo contenido
+> se publica igual desde Cloudflare Pages, Netlify o Vercel (plan gratuito,
+> framework *None*, directorio de salida `/`).
 
 ## Paso 3 — Uso en el celular
 

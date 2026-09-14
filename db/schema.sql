@@ -70,8 +70,12 @@ create trigger visitas_actualizado before update on public.visitas
 alter table public.editores enable row level security;
 alter table public.visitas  enable row level security;
 
+-- Cada persona autenticada solo puede ver su propia fila: la lista de
+-- editores no queda expuesta en un sitio público.
 drop policy if exists editores_lectura on public.editores;
-create policy editores_lectura on public.editores for select using (true);
+create policy editores_lectura on public.editores
+  for select to authenticated
+  using (lower(email) = lower(coalesce(auth.jwt() ->> 'email', '')));
 
 drop policy if exists visitas_lectura on public.visitas;
 create policy visitas_lectura on public.visitas for select using (true);
