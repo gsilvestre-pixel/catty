@@ -1,0 +1,17 @@
+{
+  "name": "Agenda de inspecciones",
+  "short_name": "Agenda",
+  "description": "Programación de visitas de inspección a entidades.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#EDF1F3",
+  "theme_color": "#16506B",
+  "lang": "es-PE",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

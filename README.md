@@ -38,23 +38,18 @@ consultan la agenda en modo lectura.
 Mientras no haya visitas, se muestran unas de ejemplo claramente rotuladas, que
 desaparecen al crear la primera real.
 
-## Despliegue público con SQL (Supabase + GitHub Pages)
+## Despliegue público con SQL
 
-1. Crear un proyecto en [supabase.com](https://supabase.com) (plan gratuito).
-2. En **SQL Editor**, ejecutar `db/schema.sql`.
-3. Registrar los correos autorizados en `public.editores` (ver el comentario
-   del propio archivo).
-4. En **Project Settings → API**, copiar `Project URL` y la clave `anon` y
-   pegarlas en `CONFIG.supabase` dentro de `index.html`. La clave `anon` es
-   pública por diseño: quién puede escribir lo decide el RLS del paso 2.
-5. En **Authentication → URL Configuration**, agregar la URL del sitio
-   publicado como *Site URL* y como *Redirect URL*.
-6. En GitHub: **Settings → Pages → Source: Deploy from a branch**, rama de este
-   repositorio, carpeta `/ (root)`.
+Ver **[DESPLIEGUE.md](DESPLIEGUE.md)**: base de datos y editores en Supabase,
+credenciales en `config.js` y dirección pública en GitHub Pages o Cloudflare
+Pages. Resultado: enlace abierto para todo el equipo y edición reservada a los
+correos registrados en la tabla `editores`.
 
-Los editores entran con **Activar edición**, reciben un enlace de acceso por
-correo y desde ahí pueden programar. Los cambios se ven en vivo en los demás
-navegadores abiertos.
+## En el celular
+
+La aplicación es instalable: *Agregar a pantalla principal* (Android) o *Añadir
+a pantalla de inicio* (iPhone) la deja con ícono propio y a pantalla completa.
+En pantallas angostas abre en la vista de día.
 
 ## Publicar como Artifact de Claude
 
@@ -69,6 +64,10 @@ a la organización: no admiten enlace público abierto.
 
 ```
 index.html                 aplicación completa (HTML + CSS + JS)
+config.js                  credenciales de Supabase (las únicas dos líneas a editar)
+manifest.webmanifest       datos de instalación en el celular
+icons/                     íconos de la aplicación
 db/schema.sql              tabla, índices y RLS para PostgreSQL
 tools/build-artifact.mjs   genera la variante publicable como Artifact
+DESPLIEGUE.md              pasos para el enlace público
 ```

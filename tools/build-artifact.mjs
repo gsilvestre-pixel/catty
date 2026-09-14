@@ -10,6 +10,9 @@ const src = readFileSync(resolve(raiz, "index.html"), "utf8");
 const head = src.match(/<head>([\s\S]*?)<\/head>/)[1]
   .replace(/^\s*<meta charset[^>]*>\s*$/m, "")
   .replace(/^\s*<meta name="viewport"[^>]*>\s*$/m, "")
+  /* lo propio del sitio publicado: no aplica dentro del visor de Artifacts */
+  .replace(/^\s*<(meta name="(theme-color|apple-[^"]*)"|link rel="(manifest|apple-touch-icon|icon)")[^>]*>\s*$/gm, "")
+  .replace(/^\s*<script src="config\.js"><\/script>\s*$/m, "")
   .trim();
 const body = src.match(/<body>([\s\S]*?)<\/body>/)[1].trim();
 

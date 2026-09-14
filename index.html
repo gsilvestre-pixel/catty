@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Agenda de Inspecciones</title>
+<meta name="theme-color" content="#16506B">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Agenda">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<script src="config.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:wght@400;600&display=swap">
@@ -163,12 +171,28 @@ dialog footer .izq{margin-right:auto}
 textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
 .pie{padding:18px 0 0; font-size:12.5px; color:var(--ink-3); display:flex; gap:14px; flex-wrap:wrap}
 
-@media (max-width:700px){
+@media (max-width:760px){
+  .wrap{padding-inline:12px}
+  .topbar .wrap{gap:7px; padding-block:9px}
+  .marca{width:100%; margin-right:0}
   .marca h1{font-size:17px}
-  .mes{grid-auto-rows:minmax(84px,1fr)}
-  .cabecera, .horas{min-width:620px}
+  .btn{padding:9px 13px}
+  .flechas .btn{width:40px}
+  #filtro-persona{flex:1 1 140px; max-width:none}
+  #btn-edicion, #btn-nueva{flex:1 1 auto}
+  .mes{grid-auto-rows:minmax(74px,1fr)}
+  .celda{padding:3px}
+  .ev{font-size:10.5px; padding:1px 4px}
+  .ev b{display:block; margin:0}
+  .cabecera, .horas{min-width:560px}
   .fila{grid-template-columns:1fr}
+  dialog{width:calc(100vw - 20px)}
 }
+@media (max-width:420px){
+  .cab-dia .n{font-size:16px; min-width:26px}
+  .dow span{font-size:10px}
+}
+@media (pointer:coarse){ :root{--fila:58px} }
 @media (prefers-reduced-motion: reduce){*{transition:none !important; animation:none !important}}
 </style>
 </head>
@@ -246,9 +270,8 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
    ===================================================================== */
 
 const CONFIG = {
-  /* Para el despliegue público sobre PostgreSQL (Supabase): completar ambos.
-     La clave anon es pública; quién escribe lo decide el RLS de db/schema.sql */
-  supabase: { url: "", anonKey: "" }
+  /* Los valores llegan de config.js (despliegue público sobre PostgreSQL). */
+  supabase: (window.CONFIG_SUPABASE || { url: "", anonKey: "" })
 };
 
 const HORA_INI = 6, HORA_FIN = 21, FILA = 52;
@@ -639,6 +662,7 @@ document.addEventListener("keydown", (ev) => {
 
 /* ---------------------- arranque ---------------------- */
 (async function iniciar() {
+  if (window.matchMedia("(max-width: 640px)").matches) { S.vista = "dia"; sincronizarVistas(); }
   render();
   let store = null;
   if (CONFIG.supabase.url && CONFIG.supabase.anonKey) {
