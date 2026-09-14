@@ -1,12 +1,11 @@
 -- =====================================================================
---  Control de cartas e inspecciones a entidades
---  Esquema PostgreSQL (probado sobre Supabase)
+--  Agenda de inspecciones — esquema PostgreSQL (probado sobre Supabase)
 --
 --  Modelo de acceso:
---    * Cualquier visitante (incluso sin sesión) puede LEER.
+--    * Cualquier visitante (incluso sin sesión) puede LEER la agenda.
 --    * Solo los correos registrados en public.editores pueden ESCRIBIR.
---  El control se aplica con RLS dentro de la base de datos, de modo que
---  la clave pública (anon key) del navegador no habilita escritura.
+--  El control se aplica con RLS dentro de la base de datos, así que la
+--  clave pública (anon key) del navegador no habilita escritura.
 -- =====================================================================
 
 create extension if not exists "pgcrypto";
@@ -15,12 +14,12 @@ create extension if not exists "pgcrypto";
 -- 1. Editores autorizados
 -- ------------------------------------------------------------------
 create table if not exists public.editores (
-  email      text primary key,
-  nombre     text,
-  creado_en  timestamptz not null default now()
+  email     text primary key,
+  nombre    text,
+  creado_en timestamptz not null default now()
 );
 
--- Reemplazar por los tres correos autorizados:
+-- Reemplazar por los correos autorizados:
 -- insert into public.editores (email, nombre) values
 --   ('persona1@dominio.pe', 'Nombre 1'),
 --   ('persona2@dominio.pe', 'Nombre 2'),
@@ -36,73 +35,23 @@ create or replace function public.es_editor() returns boolean
 $$;
 
 -- ------------------------------------------------------------------
--- 2. Padrón de entidades
+-- 2. Visitas programadas
 -- ------------------------------------------------------------------
-create table if not exists public.entidades (
-  id                 uuid primary key default gen_random_uuid(),
-  nombre             text not null,
-  ubicacion          text not null default '',
-  carta_estado       text not null default 'pendiente'
-                     check (carta_estado in ('pendiente', 'cursada')),
-  carta_fecha        date,
-  carta_numero       text not null default '',
-  -- actividad 1: quiénes tuvieron a cargo la notificación de la carta
-  carta_responsables text[] not null default '{}',
-  nota               text not null default '',
+create table if not exists public.visitas (
+  id             uuid primary key default gen_random_uuid(),
+  entidad        text not null,
+  fecha          date not null,
+  hora           time not null,
+  -- una o más personas por visita
+  personas       text[] not null default '{}',
+  observaciones  text not null default '',
   creado_en      timestamptz not null default now(),
   actualizado_en timestamptz not null default now()
 );
 
--- ------------------------------------------------------------------
--- 3. Inspecciones (actividades 2 y 3: primera y segunda)
--- ------------------------------------------------------------------
-create table if not exists public.visitas (
-  id               uuid primary key default gen_random_uuid(),
-  entidad_id       uuid not null references public.entidades(id) on delete cascade,
-  tipo             text not null default 'primera'
-                   check (tipo in ('primera', 'segunda')),
-  fecha            date not null,
-  hora             time,
-  estado           text not null default 'programada'
-                   check (estado in ('programada', 'realizada', 'no_realizada')),
-  resultado        text check (resultado in ('positivo', 'negativo')),
-  -- lo define la primera inspección
-  requiere_segunda text check (requiere_segunda in ('si', 'no')),
-  -- quiénes tuvieron a cargo la inspección (una o más personas)
-  responsables     text[] not null default '{}',
-  nota             text not null default '',
-  creado_en        timestamptz not null default now(),
-  actualizado_en   timestamptz not null default now(),
-  -- el resultado solo tiene sentido en una inspección realizada
-  constraint resultado_coherente check (resultado is null or estado = 'realizada'),
-  -- solo la primera inspección define si hace falta una segunda
-  constraint segunda_solo_en_primera check (requiere_segunda is null or tipo = 'primera')
-);
-
 create index if not exists visitas_fecha_idx    on public.visitas (fecha);
-create index if not exists visitas_entidad_idx  on public.visitas (entidad_id);
-create index if not exists visitas_responsables_idx on public.visitas using gin (responsables);
+create index if not exists visitas_personas_idx on public.visitas using gin (personas);
 
--- Carga de trabajo por persona (las tres actividades en una sola consulta)
-create or replace view public.carga_por_persona as
-  select persona,
-         count(*) filter (where actividad = 'carta')    as cartas_notificadas,
-         count(*) filter (where actividad = 'primera')  as primeras_inspecciones,
-         count(*) filter (where actividad = 'segunda')  as segundas_inspecciones
-  from (
-    select unnest(carta_responsables) as persona, 'carta' as actividad
-      from public.entidades where carta_estado = 'cursada'
-    union all
-    select unnest(responsables) as persona, tipo as actividad
-      from public.visitas where estado = 'realizada'
-  ) t
-  where persona <> ''
-  group by persona
-  order by persona;
-
--- ------------------------------------------------------------------
--- 4. Marca de tiempo de actualización
--- ------------------------------------------------------------------
 create or replace function public.tocar_actualizado() returns trigger
   language plpgsql as $$
 begin
@@ -111,45 +60,30 @@ begin
 end;
 $$;
 
-drop trigger if exists entidades_actualizado on public.entidades;
-create trigger entidades_actualizado before update on public.entidades
-  for each row execute function public.tocar_actualizado();
-
 drop trigger if exists visitas_actualizado on public.visitas;
 create trigger visitas_actualizado before update on public.visitas
   for each row execute function public.tocar_actualizado();
 
 -- ------------------------------------------------------------------
--- 5. Seguridad a nivel de fila (RLS)
+-- 3. Seguridad a nivel de fila (RLS)
 -- ------------------------------------------------------------------
-alter table public.editores  enable row level security;
-alter table public.entidades enable row level security;
-alter table public.visitas   enable row level security;
+alter table public.editores enable row level security;
+alter table public.visitas  enable row level security;
 
--- Lectura abierta: el enlace es público.
 drop policy if exists editores_lectura on public.editores;
 create policy editores_lectura on public.editores for select using (true);
 
-drop policy if exists entidades_lectura on public.entidades;
-create policy entidades_lectura on public.entidades for select using (true);
-
 drop policy if exists visitas_lectura on public.visitas;
 create policy visitas_lectura on public.visitas for select using (true);
-
--- Escritura reservada a los editores autorizados.
-drop policy if exists entidades_escritura on public.entidades;
-create policy entidades_escritura on public.entidades
-  for all to authenticated using (public.es_editor()) with check (public.es_editor());
 
 drop policy if exists visitas_escritura on public.visitas;
 create policy visitas_escritura on public.visitas
   for all to authenticated using (public.es_editor()) with check (public.es_editor());
 
--- La tabla de editores no se modifica desde la aplicación: se administra
--- desde el panel de Supabase (sin política de escritura, RLS la bloquea).
+-- La tabla de editores se administra desde el panel de Supabase: sin
+-- política de escritura, el RLS la bloquea desde la aplicación.
 
 -- ------------------------------------------------------------------
--- 6. Actualizaciones en vivo para los demás navegadores abiertos
+-- 4. Actualizaciones en vivo para los navegadores abiertos
 -- ------------------------------------------------------------------
-alter publication supabase_realtime add table public.entidades;
 alter publication supabase_realtime add table public.visitas;
