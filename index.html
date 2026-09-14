@@ -1,0 +1,1167 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Padrón de Visitas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+/* ---------- Tokens: tema claro (base) ---------- */
+:root{
+  --ground:#EDF1F3; --surface:#FFFFFF; --surface-2:#F4F7F8; --surface-3:#E8EEF0;
+  --line:#D5DEE2; --line-soft:#E5EBEE;
+  --ink:#131B20; --ink-2:#4A5860; --ink-3:#71828B;
+  --accent:#16506B; --accent-ink:#0E3B50; --accent-soft:#E0EBF1;
+  --ok:#1C7A52; --ok-soft:#DFF0E7;
+  --warn:#8F5E0F; --warn-soft:#F6EBD5;
+  --crit:#A5382C; --crit-soft:#F8E4E0;
+  --shadow:0 1px 2px rgba(19,27,32,.06), 0 6px 18px rgba(19,27,32,.05);
+  --radius:10px;
+  --mono:"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans:"Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --display:"Archivo", "Source Sans 3", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0F1519; --surface:#161E23; --surface-2:#1B252B; --surface-3:#222E35;
+    --line:#2B373E; --line-soft:#222D34;
+    --ink:#E7EDF0; --ink-2:#AEBCC3; --ink-3:#87979F;
+    --accent:#6FAECC; --accent-ink:#9CCBE3; --accent-soft:#16303C;
+    --ok:#5DBA8C; --ok-soft:#14291F;
+    --warn:#D8A252; --warn-soft:#2A2213;
+    --crit:#E08578; --crit-soft:#2E1A17;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.25);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0F1519; --surface:#161E23; --surface-2:#1B252B; --surface-3:#222E35;
+  --line:#2B373E; --line-soft:#222D34;
+  --ink:#E7EDF0; --ink-2:#AEBCC3; --ink-3:#87979F;
+  --accent:#6FAECC; --accent-ink:#9CCBE3; --accent-soft:#16303C;
+  --ok:#5DBA8C; --ok-soft:#14291F;
+  --warn:#D8A252; --warn-soft:#2A2213;
+  --crit:#E08578; --crit-soft:#2E1A17;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.25);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:var(--sans); font-size:15px; line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{font-family:var(--display); text-wrap:balance; margin:0; letter-spacing:-.01em}
+button, input, select, textarea{font:inherit; color:inherit}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:4px}
+.wrap{max-width:1180px; margin:0 auto; padding-inline:16px}
+
+/* ---------- Encabezado ---------- */
+.topbar{
+  position:sticky; top:0; z-index:30; background:var(--surface);
+  border-bottom:1px solid var(--line);
+}
+.topbar .wrap{display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding-block:12px}
+.marca{display:flex; flex-direction:column; gap:2px; margin-right:auto; min-width:0}
+.marca h1{font-size:19px; font-weight:700}
+.marca .sub{font-size:12.5px; color:var(--ink-3); letter-spacing:.06em; text-transform:uppercase; font-weight:600}
+.estado-acceso{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.pill-acceso{
+  display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600;
+  padding:5px 10px; border-radius:999px; border:1px solid var(--line); color:var(--ink-2); background:var(--surface-2);
+}
+.pill-acceso .dot{width:7px; height:7px; border-radius:50%; background:var(--ink-3)}
+.pill-acceso.editando{color:var(--ok); border-color:color-mix(in srgb, var(--ok) 35%, var(--line)); background:var(--ok-soft)}
+.pill-acceso.editando .dot{background:var(--ok)}
+.btn{
+  border:1px solid var(--line); background:var(--surface); color:var(--ink);
+  padding:7px 13px; border-radius:8px; font-weight:600; font-size:13.5px; cursor:pointer;
+  transition:background .12s ease, border-color .12s ease;
+}
+.btn:hover{background:var(--surface-2); border-color:var(--ink-3)}
+.btn.primario{background:var(--accent); border-color:var(--accent); color:#fff}
+:root[data-theme="dark"] .btn.primario, :root:not([data-theme="light"]) .btn.primario{color:#0F1519}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]) .btn.primario{color:#fff}}
+.btn.primario:hover{filter:brightness(1.08)}
+.btn.sutil{background:transparent; border-color:transparent; color:var(--ink-2); padding:6px 8px}
+.btn.sutil:hover{background:var(--surface-2); border-color:var(--line-soft)}
+.btn.chico{padding:4px 9px; font-size:12.5px; border-radius:7px}
+.btn[disabled]{opacity:.45; cursor:not-allowed}
+
+/* ---------- Indicadores ---------- */
+.kpis{display:grid; grid-template-columns:repeat(5,1fr); gap:1px; background:var(--line-soft);
+  border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; margin-top:18px}
+.kpi{background:var(--surface); padding:12px 14px; display:flex; flex-direction:column; gap:3px; min-width:0}
+.kpi .rotulo{font-size:11.5px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-3); font-weight:600}
+.kpi .cifra{font-family:var(--mono); font-size:25px; font-weight:500; font-variant-numeric:tabular-nums; line-height:1.1}
+.kpi .nota{font-size:12.5px; color:var(--ink-2)}
+.kpi.alerta .cifra{color:var(--crit)}
+.kpi.pend .cifra{color:var(--warn)}
+.kpi.bien .cifra{color:var(--ok)}
+.barra{height:5px; border-radius:99px; background:var(--surface-3); overflow:hidden; margin-top:5px}
+.barra span{display:block; height:100%; background:var(--ok)}
+
+/* ---------- Pestañas ---------- */
+.tabs{display:flex; gap:4px; margin:18px 0 0; border-bottom:1px solid var(--line); flex-wrap:wrap}
+.tab{
+  border:none; background:none; padding:9px 13px 11px; font-weight:600; font-size:14px; color:var(--ink-3);
+  cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; display:flex; align-items:center; gap:7px;
+}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--ink); border-bottom-color:var(--accent)}
+.tab .cuenta{font-family:var(--mono); font-size:11.5px; background:var(--surface-3); color:var(--ink-2); padding:1px 6px; border-radius:99px}
+.tab[aria-selected="true"] .cuenta{background:var(--accent-soft); color:var(--accent-ink)}
+
+main{padding-bottom:64px}
+.vista{display:none; padding-top:20px}
+.vista.activa{display:block}
+
+/* ---------- Bloques / tarjetas ---------- */
+.bloque{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); margin-bottom:16px; overflow:hidden}
+.bloque > header{display:flex; align-items:baseline; gap:10px; padding:12px 14px; border-bottom:1px solid var(--line-soft); flex-wrap:wrap}
+.bloque > header h2{font-size:14.5px; font-weight:700; letter-spacing:.01em}
+.bloque > header .cuenta{font-family:var(--mono); font-size:12px; color:var(--ink-3)}
+.bloque > header .glosa{font-size:12.5px; color:var(--ink-3); margin-left:auto}
+.bloque.urgente{border-color:color-mix(in srgb, var(--crit) 45%, var(--line))}
+.bloque.urgente > header{background:var(--crit-soft)}
+.bloque.urgente > header h2{color:var(--crit)}
+.bloque.vacia > header{border-bottom:none; padding-block:11px}
+.bloque.vacia > header h2{color:var(--ink-2)}
+.bloque.vacia > header .glosa{color:var(--ok)}
+
+.lista{list-style:none; margin:0; padding:0}
+.item{display:flex; align-items:center; gap:12px; padding:10px 14px; border-top:1px solid var(--line-soft); flex-wrap:wrap}
+.lista .item:first-child{border-top:none}
+.item:hover{background:var(--surface-2)}
+.item .fecha{
+  font-family:var(--mono); font-size:12.5px; font-variant-numeric:tabular-nums; color:var(--ink-2);
+  min-width:58px; text-align:center; padding:4px 6px; border-radius:7px; background:var(--surface-3); line-height:1.25;
+}
+.item .fecha b{display:block; font-size:14px; font-weight:500; color:var(--ink)}
+.item .cuerpo{min-width:min(100%, 200px); flex:1}
+.item .nombre{font-weight:600; font-size:14.5px; line-height:1.3}
+.item .meta{font-size:12.5px; color:var(--ink-3); display:flex; gap:10px; flex-wrap:wrap; margin-top:1px}
+.item .acciones{display:flex; gap:6px; flex-wrap:wrap; margin-left:auto}
+.vacio{padding:14px; color:var(--ink-3); font-size:13.5px}
+
+/* ---------- Distintivos de estado ---------- */
+.chip{
+  display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600;
+  padding:3px 9px; border-radius:99px; border:1px solid transparent; white-space:nowrap;
+}
+.chip::before{content:""; width:6px; height:6px; border-radius:50%; background:currentColor; flex:none}
+.chip.neutro{background:var(--surface-3); color:var(--ink-2); border-color:var(--line)}
+.chip.info{background:var(--accent-soft); color:var(--accent-ink); border-color:color-mix(in srgb, var(--accent) 30%, transparent)}
+.chip.ok{background:var(--ok-soft); color:var(--ok); border-color:color-mix(in srgb, var(--ok) 30%, transparent)}
+.chip.pend{background:var(--warn-soft); color:var(--warn); border-color:color-mix(in srgb, var(--warn) 30%, transparent)}
+.chip.mal{background:var(--crit-soft); color:var(--crit); border-color:color-mix(in srgb, var(--crit) 30%, transparent)}
+
+/* ---------- Calendario ---------- */
+.meses{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+@media (max-width:820px){ .meses{grid-template-columns:1fr} }
+.mes{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:12px}
+.mes h2{font-size:15px; font-weight:700; text-transform:capitalize; margin-bottom:2px}
+.mes .resumen-mes{font-size:12.5px; color:var(--ink-3); margin-bottom:10px; display:flex; gap:12px; flex-wrap:wrap}
+.grilla{display:grid; grid-template-columns:repeat(7,1fr); gap:3px}
+.dow{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-3); text-align:center; font-weight:600; padding-bottom:4px}
+.dia{
+  aspect-ratio:1/1; min-height:64px; border:1px solid var(--line-soft); border-radius:7px; background:var(--surface);
+  display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start; gap:2px;
+  padding:3px 2px; cursor:pointer; position:relative; min-width:0; overflow:hidden; text-align:left;
+}
+.dia:hover{border-color:var(--ink-3)}
+.dia.fuera{visibility:hidden}
+.dia.finde{background:var(--surface-2)}
+.dia .n{font-family:var(--mono); font-size:11.5px; font-variant-numeric:tabular-nums; color:var(--ink-3); line-height:1; padding:1px 0 0 4px}
+.dia.hoy{border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent)}
+.dia.hoy .n{color:var(--accent-ink); font-weight:500}
+.dia[aria-pressed="true"]{background:var(--accent-soft); border-color:var(--accent)}
+.punto{width:7px; height:7px; border-radius:50%; display:inline-block; flex:none}
+.chips-dia{display:flex; flex-direction:column; gap:2px; width:100%; overflow:hidden; padding:0 2px}
+.mini{
+  display:block; font-size:9.5px; line-height:1.4; font-weight:600; border-radius:3px; padding:1px 4px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:left; border-left:3px solid currentColor;
+}
+.mini.prog{color:var(--accent-ink); background:var(--accent-soft)}
+.mini.ok{color:var(--ok); background:var(--ok-soft)}
+.mini.mal{color:var(--crit); background:var(--crit-soft)}
+.mini.pend{color:var(--warn); background:var(--warn-soft)}
+.mas{font-family:var(--mono); font-size:9.5px; color:var(--ink-3); padding-left:4px; text-align:left}
+.punto.prog{background:var(--accent)}
+.punto.ok{background:var(--ok)}
+.punto.mal{background:var(--crit)}
+.punto.pend{background:var(--warn)}
+
+.leyenda{display:flex; gap:14px; flex-wrap:wrap; font-size:12.5px; color:var(--ink-2); padding:10px 2px 0}
+.leyenda span{display:inline-flex; align-items:center; gap:6px}
+
+/* ---------- Tabla padrón ---------- */
+.tabla-scroll{overflow-x:auto}
+table{border-collapse:collapse; width:100%; font-size:14px; min-width:720px}
+th{
+  text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-3);
+  font-weight:600; padding:9px 12px; border-bottom:1px solid var(--line); background:var(--surface-2); white-space:nowrap;
+}
+td{padding:9px 12px; border-bottom:1px solid var(--line-soft); vertical-align:middle}
+tbody tr:hover{background:var(--surface-2)}
+td.ent{font-weight:600}
+td.ent small{display:block; font-weight:400; color:var(--ink-3); font-size:12.5px}
+td.fecha{font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:13px; color:var(--ink-2); white-space:nowrap}
+td.acciones{text-align:right; white-space:nowrap}
+
+/* ---------- Filtros ---------- */
+.filtros{display:flex; gap:8px; flex-wrap:wrap; align-items:center; padding:10px 14px; border-bottom:1px solid var(--line-soft)}
+input[type="text"], input[type="date"], input[type="time"], select, textarea{
+  background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:7px 10px; font-size:14px;
+}
+input[type="text"]:focus, select:focus, textarea:focus{border-color:var(--accent)}
+.buscador{flex:1; min-width:180px}
+.filtros .btn{margin-left:auto}
+
+/* ---------- Avisos ---------- */
+.aviso{
+  display:flex; gap:10px; align-items:flex-start; padding:11px 14px; border-radius:var(--radius);
+  border:1px solid var(--line); background:var(--surface-2); font-size:13.5px; color:var(--ink-2); margin-top:16px;
+}
+.aviso b{color:var(--ink)}
+.aviso.demo{border-color:color-mix(in srgb, var(--warn) 45%, var(--line)); background:var(--warn-soft); color:var(--warn)}
+.aviso .btn{margin-left:auto; flex:none}
+
+/* ---------- Diálogos ---------- */
+dialog{
+  border:1px solid var(--line); border-radius:12px; background:var(--surface); color:var(--ink);
+  padding:0; width:min(560px, calc(100vw - 32px)); box-shadow:var(--shadow);
+}
+dialog::backdrop{background:rgba(10,16,20,.45)}
+dialog header{padding:14px 16px; border-bottom:1px solid var(--line-soft); display:flex; align-items:center; gap:10px}
+dialog header h2{font-size:16px; font-weight:700; margin-right:auto}
+dialog .cuerpo{padding:16px; display:grid; gap:12px}
+dialog footer{padding:12px 16px; border-top:1px solid var(--line-soft); display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap}
+dialog footer .izq{margin-right:auto}
+.campo{display:flex; flex-direction:column; gap:4px}
+.campo label{font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-3); font-weight:600}
+.fila{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+@media (max-width:520px){ .fila{grid-template-columns:1fr} }
+textarea{resize:vertical; min-height:62px; font-family:var(--sans)}
+.ayuda{font-size:12.5px; color:var(--ink-3)}
+.pie{padding:22px 0 0; font-size:12.5px; color:var(--ink-3); display:flex; gap:14px; flex-wrap:wrap}
+
+@media (max-width:760px){
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .kpi:last-child{grid-column:1 / -1}
+  .marca h1{font-size:17px}
+}
+@media (prefers-reduced-motion: reduce){ *{transition:none !important; animation:none !important} }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <div class="marca">
+      <span class="sub" id="periodo-rotulo">Setiembre – Octubre 2026</span>
+      <h1 id="titulo-app">Cartas e inspecciones a entidades</h1>
+    </div>
+    <div class="estado-acceso">
+      <span class="pill-acceso" id="pill-acceso"><span class="dot"></span><span id="txt-acceso">Conectando…</span></span>
+      <button class="btn" id="btn-edicion">Activar edición</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="kpis" id="kpis" aria-label="Resumen del avance"></section>
+
+  <nav class="tabs" role="tablist" aria-label="Secciones">
+    <button class="tab" role="tab" id="tab-pendientes" aria-controls="vista-pendientes" aria-selected="true">Pendientes <span class="cuenta" id="cuenta-pendientes">0</span></button>
+    <button class="tab" role="tab" id="tab-calendario" aria-controls="vista-calendario" aria-selected="false">Calendario</button>
+    <button class="tab" role="tab" id="tab-padron" aria-controls="vista-padron" aria-selected="false">Padrón <span class="cuenta" id="cuenta-padron">0</span></button>
+  </nav>
+
+  <div id="aviso-fuente"></div>
+
+  <section class="vista activa" id="vista-pendientes" role="tabpanel" aria-labelledby="tab-pendientes"></section>
+
+  <section class="vista" id="vista-calendario" role="tabpanel" aria-labelledby="tab-calendario">
+    <div class="meses" id="meses"></div>
+    <div class="leyenda">
+      <span><i class="punto prog"></i> Programada</span>
+      <span><i class="punto ok"></i> Realizada · resultado positivo</span>
+      <span><i class="punto mal"></i> Realizada · resultado negativo</span>
+      <span><i class="punto pend"></i> Realizada · sin resultado / no realizada</span>
+    </div>
+    <div id="detalle-dia"></div>
+  </section>
+
+  <section class="vista" id="vista-padron" role="tabpanel" aria-labelledby="tab-padron">
+    <div class="bloque">
+      <div class="filtros">
+        <input type="text" id="buscar" class="buscador" placeholder="Buscar entidad, ubicación o responsable…" aria-label="Buscar">
+        <select id="filtro-estado" aria-label="Filtrar por estado">
+          <option value="">Todos los estados</option>
+          <option value="sin_carta">Carta por cursar</option>
+          <option value="por_programar">Visita por programar</option>
+          <option value="programada">Visita programada</option>
+          <option value="visitada">Visitada</option>
+        </select>
+        <select id="filtro-resultado" aria-label="Filtrar por resultado">
+          <option value="">Todo resultado</option>
+          <option value="positivo">Positivo</option>
+          <option value="negativo">Negativo</option>
+          <option value="sin">Sin resultado</option>
+        </select>
+        <button class="btn chico" id="btn-exportar">Exportar CSV</button>
+        <button class="btn chico" id="btn-importar">Importar padrón</button>
+        <button class="btn chico primario" id="btn-nueva-entidad">+ Entidad</button>
+      </div>
+      <div class="tabla-scroll">
+        <table>
+          <thead><tr>
+            <th>Entidad</th><th>Carta</th><th>Visita</th><th>Estado</th><th>Resultado</th><th></th>
+          </tr></thead>
+          <tbody id="tbody-padron"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <p class="pie">
+    <span id="pie-fuente">—</span>
+    <span id="pie-actualizado"></span>
+  </p>
+</main>
+
+<dialog id="dlg-entidad">
+  <form method="dialog" id="form-entidad">
+    <header><h2 id="dlg-entidad-titulo">Entidad</h2></header>
+    <div class="cuerpo">
+      <div class="campo">
+        <label for="e-nombre">Entidad</label>
+        <input type="text" id="e-nombre" required maxlength="160" placeholder="Nombre de la entidad">
+      </div>
+      <div class="fila">
+        <div class="campo">
+          <label for="e-ubicacion">Ubicación</label>
+          <input type="text" id="e-ubicacion" maxlength="120" placeholder="Distrito / provincia">
+        </div>
+        <div class="campo">
+          <label for="e-responsable">Responsable</label>
+          <input type="text" id="e-responsable" maxlength="80" placeholder="Quién inspecciona">
+        </div>
+      </div>
+      <div class="fila">
+        <div class="campo">
+          <label for="e-carta-estado">Carta</label>
+          <select id="e-carta-estado">
+            <option value="pendiente">Por cursar</option>
+            <option value="cursada">Cursada</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="e-carta-fecha">Fecha de la carta</label>
+          <input type="date" id="e-carta-fecha">
+        </div>
+      </div>
+      <div class="campo">
+        <label for="e-carta-numero">N° de carta / oficio</label>
+        <input type="text" id="e-carta-numero" maxlength="60" placeholder="Opcional">
+      </div>
+      <div class="campo">
+        <label for="e-nota">Observación</label>
+        <textarea id="e-nota" maxlength="400" placeholder="Solo lo indispensable"></textarea>
+      </div>
+    </div>
+    <footer>
+      <button type="button" class="btn izq" id="e-eliminar">Eliminar</button>
+      <button type="button" class="btn" data-cerrar>Cancelar</button>
+      <button type="submit" class="btn primario">Guardar</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="dlg-visita">
+  <form method="dialog" id="form-visita">
+    <header><h2 id="dlg-visita-titulo">Visita</h2></header>
+    <div class="cuerpo">
+      <div class="campo">
+        <label for="v-entidad">Entidad</label>
+        <select id="v-entidad" required></select>
+      </div>
+      <div class="fila">
+        <div class="campo">
+          <label for="v-fecha">Fecha</label>
+          <input type="date" id="v-fecha" required>
+        </div>
+        <div class="campo">
+          <label for="v-hora">Hora</label>
+          <input type="time" id="v-hora">
+        </div>
+      </div>
+      <div class="fila">
+        <div class="campo">
+          <label for="v-estado">Estado</label>
+          <select id="v-estado">
+            <option value="programada">Programada</option>
+            <option value="realizada">Realizada</option>
+            <option value="no_realizada">No realizada</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="v-resultado">Resultado</label>
+          <select id="v-resultado">
+            <option value="">Sin resultado</option>
+            <option value="positivo">Positivo</option>
+            <option value="negativo">Negativo</option>
+          </select>
+        </div>
+      </div>
+      <div class="campo">
+        <label for="v-responsable">Responsable</label>
+        <input type="text" id="v-responsable" maxlength="80" placeholder="Quién realiza la visita">
+      </div>
+      <div class="campo">
+        <label for="v-nota">Observación</label>
+        <textarea id="v-nota" maxlength="400" placeholder="Hallazgo o motivo de reprogramación"></textarea>
+      </div>
+    </div>
+    <footer>
+      <button type="button" class="btn izq" id="v-eliminar">Eliminar</button>
+      <button type="button" class="btn" data-cerrar>Cancelar</button>
+      <button type="submit" class="btn primario">Guardar</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="dlg-importar">
+  <form method="dialog" id="form-importar">
+    <header><h2>Importar padrón</h2></header>
+    <div class="cuerpo">
+      <p class="ayuda">Pega el padrón desde Excel (Ctrl+C sobre las celdas) o en formato CSV. La primera fila debe ser el encabezado. Se reconocen: <b>entidad</b> (o nombre / razón social), <b>ubicación</b> (o distrito / provincia), <b>responsable</b>, <b>carta</b>, <b>fecha carta</b>, <b>n° carta</b>, <b>fecha visita</b>, <b>observación</b>. Las columnas que no se reconozcan se ignoran.</p>
+      <div class="campo">
+        <label for="i-texto">Datos</label>
+        <textarea id="i-texto" style="min-height:170px; font-family:var(--mono); font-size:13px" placeholder="entidad;ubicacion;responsable&#10;Municipalidad Distrital de X;Lima;J. Pérez"></textarea>
+      </div>
+      <label class="ayuda"><input type="checkbox" id="i-reemplazar"> Reemplazar el padrón actual (elimina las entidades existentes)</label>
+    </div>
+    <footer>
+      <button type="button" class="btn" data-cerrar>Cancelar</button>
+      <button type="submit" class="btn primario">Importar</button>
+    </footer>
+  </form>
+</dialog>
+
+<script>
+/* =====================================================================
+   Control de cartas e inspecciones a entidades
+   Fuente de datos: Supabase (SQL) -> base de datos del artefacto -> local
+   ===================================================================== */
+
+const CONFIG = {
+  titulo: "Cartas e inspecciones a entidades",
+  meses: ["2026-09", "2026-10"],
+  /* Para el despliegue público sobre PostgreSQL (Supabase): completar ambos
+     valores. La clave anon es pública por diseño; quién escribe lo decide el
+     RLS declarado en db/schema.sql. */
+  supabase: { url: "", anonKey: "" }
+};
+
+/* ---------------------- utilidades ---------------------- */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const MES_LARGO = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "setiembre", "octubre", "noviembre", "diciembre"];
+const MES_CORTO = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "set", "oct", "nov", "dic"];
+const DIA_LARGO = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+
+const hoyISO = () => {
+  const d = new Date();
+  return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, "0"), String(d.getDate()).padStart(2, "0")].join("-");
+};
+const aDate = (iso) => { const [a, m, d] = String(iso).split("-").map(Number); return new Date(a, m - 1, d); };
+const fCorta = (iso) => { if (!iso) return "—"; const d = aDate(iso); return d.getDate() + " " + MES_CORTO[d.getMonth()]; };
+const fLarga = (iso) => { const d = aDate(iso); return DIA_LARGO[d.getDay()] + " " + d.getDate() + " de " + MES_LARGO[d.getMonth()]; };
+const dias = (a, b) => Math.round((aDate(b) - aDate(a)) / 86400000);
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id" + Date.now() + Math.random().toString(16).slice(2));
+
+function cargarScript(src) {
+  return new Promise((ok, err) => {
+    const s = document.createElement("script");
+    s.src = src; s.onload = ok; s.onerror = () => err(new Error("no se pudo cargar " + src));
+    document.head.appendChild(s);
+  });
+}
+
+/* Parser tolerante: acepta CSV con coma, punto y coma o tabulaciones. */
+function parseTabla(texto) {
+  const lineas = texto.replace(/\r/g, "").split("\n").filter((l) => l.trim() !== "");
+  if (!lineas.length) return [];
+  const conteo = (c) => (lineas[0].match(new RegExp("\\" + c, "g")) || []).length;
+  const sep = conteo("\t") ? "\t" : conteo(";") >= conteo(",") ? ";" : ",";
+  const fila = (l) => {
+    const out = []; let cur = "", q = false;
+    for (let i = 0; i < l.length; i++) {
+      const ch = l[i];
+      if (ch === '"') { if (q && l[i + 1] === '"') { cur += '"'; i++; } else q = !q; }
+      else if (ch === sep && !q) { out.push(cur.trim()); cur = ""; }
+      else cur += ch;
+    }
+    out.push(cur.trim());
+    return out;
+  };
+  const norm = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "");
+  const cab = fila(lineas[0]).map(norm);
+  const col = (...alias) => cab.findIndex((c) => alias.some((a) => c === a || c.startsWith(a)));
+  const idx = {
+    nombre: col("entidad", "nombre", "razonsocial", "denominacion"),
+    ubicacion: col("ubicacion", "distrito", "provincia", "departamento", "localidad", "direccion"),
+    responsable: col("responsable", "encargado", "inspector", "supervisor"),
+    carta: col("carta", "estadocarta", "oficio"),
+    cartaFecha: col("fechacarta", "fechadecarta", "fechaoficio"),
+    cartaNumero: col("ncarta", "nrocarta", "numerocarta", "numerodecarta", "ndecarta"),
+    visitaFecha: col("fechavisita", "fechadevisita", "visita", "fechainspeccion", "programacion"),
+    nota: col("observacion", "observaciones", "nota", "comentario")
+  };
+  if (idx.nombre < 0) idx.nombre = 0;
+  const filas = [];
+  for (let i = 1; i < lineas.length; i++) {
+    const c = fila(lineas[i]);
+    const val = (k) => (idx[k] >= 0 ? (c[idx[k]] || "").trim() : "");
+    const nombre = val("nombre");
+    if (!nombre) continue;
+    filas.push({
+      nombre,
+      ubicacion: val("ubicacion"),
+      responsable: val("responsable"),
+      carta_estado: /curs|envi|si|remit/i.test(val("carta")) ? "cursada" : "pendiente",
+      carta_fecha: aISO(val("cartaFecha")),
+      carta_numero: val("cartaNumero"),
+      nota: val("nota"),
+      _visita: aISO(val("visitaFecha"))
+    });
+  }
+  return filas;
+}
+/* Acepta 2026-09-14, 14/09/2026 y 14-09-26 */
+function aISO(v) {
+  const s = String(v || "").trim();
+  if (!s) return "";
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (m) return m[1] + "-" + m[2].padStart(2, "0") + "-" + m[3].padStart(2, "0");
+  m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+  if (m) { const a = m[3].length === 2 ? "20" + m[3] : m[3]; return a + "-" + m[2].padStart(2, "0") + "-" + m[1].padStart(2, "0"); }
+  return "";
+}
+
+/* ---------------------- datos de ejemplo (no se guardan) ---------------------- */
+function datosEjemplo() {
+  const e = (nombre, ubicacion, responsable, carta_estado, carta_fecha, carta_numero) =>
+    ({ id: uid(), nombre, ubicacion, responsable, carta_estado, carta_fecha, carta_numero, nota: "" });
+  const ents = [
+    e("Municipalidad Distrital de Santiago", "Cusco", "J. Quispe", "cursada", "2026-09-02", "CARTA 112-2026"),
+    e("Municipalidad Provincial de Huaura", "Lima", "R. Vargas", "cursada", "2026-09-03", "CARTA 113-2026"),
+    e("UGEL 06 Ate", "Lima", "J. Quispe", "cursada", "2026-09-05", "CARTA 118-2026"),
+    e("Hospital Regional de Ica", "Ica", "M. Flores", "cursada", "2026-09-08", "CARTA 121-2026"),
+    e("EPS Tacna S.A.", "Tacna", "R. Vargas", "cursada", "2026-09-10", "CARTA 124-2026"),
+    e("Municipalidad Distrital de Yarinacocha", "Ucayali", "M. Flores", "pendiente", "", ""),
+    e("Dirección Regional de Transportes de Puno", "Puno", "", "pendiente", "", ""),
+    e("Municipalidad Distrital de Pátapo", "Lambayeque", "", "pendiente", "", "")
+  ];
+  const v = (i, fecha, hora, estado, resultado, nota) =>
+    ({ id: uid(), entidad_id: ents[i].id, fecha, hora, estado, resultado, responsable: ents[i].responsable, nota: nota || "" });
+  const vis = [
+    v(0, "2026-09-08", "09:00", "realizada", "positivo", "Documentación completa."),
+    v(1, "2026-09-09", "10:30", "realizada", "negativo", "No exhibió acervo documentario."),
+    v(2, "2026-09-11", "09:00", "realizada", "positivo", ""),
+    v(3, "2026-09-12", "11:00", "realizada", "", "Acta pendiente de suscripción."),
+    v(4, "2026-09-16", "09:30", "programada", "", ""),
+    v(0, "2026-09-23", "15:00", "programada", "", "Segunda visita de verificación."),
+    v(1, "2026-10-01", "09:00", "programada", "", ""),
+    v(2, "2026-10-07", "10:00", "programada", "", ""),
+    v(3, "2026-10-15", "09:00", "programada", "", "")
+  ];
+  return { entidades: ents, visitas: vis };
+}
+
+/* ---------------------- almacenes ---------------------- */
+/* Todos exponen: etiqueta, escucha(cb), guardar(col,obj), borrar(col,id),
+   guardarLote(col,objs), probarEdicion(), edicionDirecta                  */
+
+async function storeClaudeDb() {
+  const db = window.claude && window.claude.use ? await window.claude.use("db") : null;
+  if (!db) return null;
+  const limpio = (o) => { const c = { ...o }; delete c.id; return c; };
+  return {
+    tipo: "db",
+    etiqueta: "Base de datos en línea del panel",
+    edicionDirecta: false,
+    escucha(cb) {
+      ["entidades", "visitas"].forEach((col) => {
+        db.collection(col).onSnapshot(
+          (snap) => cb(col, snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+          (err) => console.warn("db " + col, err.code)
+        );
+      });
+    },
+    async guardar(col, obj) { await db.doc(col + "/" + obj.id).set(limpio(obj)); },
+    async borrar(col, id) { await db.doc(col + "/" + id).delete(); },
+    async guardarLote(col, objs) { for (const o of objs) await db.doc(col + "/" + o.id).set(limpio(o)); },
+    async probarEdicion() {
+      try { await db.doc("meta/acceso").set({ ts: Date.now() }); return true; }
+      catch (e) { return false; }
+    }
+  };
+}
+
+async function storeSupabase(cfg) {
+  await cargarScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js");
+  const sb = window.supabase.createClient(cfg.url, cfg.anonKey);
+  let alCambiar = null;
+  /* PostgreSQL usa NULL donde el formulario usa cadena vacía */
+  const CAMPOS_NULOS = ["fecha", "hora", "carta_fecha", "resultado"];
+  const aFila = (o) => { const c = { ...o }; CAMPOS_NULOS.forEach((k) => { if (c[k] === "") c[k] = null; }); return c; };
+  const deFila = (r) => {
+    const c = { ...r };
+    CAMPOS_NULOS.forEach((k) => { if (c[k] == null) c[k] = ""; });
+    if (c.hora) c.hora = String(c.hora).slice(0, 5);
+    return c;
+  };
+  const leer = async (col) => {
+    const { data, error } = await sb.from(col).select("*");
+    if (error) { console.warn(col, error.message); return []; }
+    return (data || []).map(deFila);
+  };
+  return {
+    tipo: "supabase",
+    etiqueta: "PostgreSQL (Supabase)",
+    edicionDirecta: false,
+    cliente: sb,
+    escucha(cb) {
+      alCambiar = cb;
+      const refrescar = async () => { cb("entidades", await leer("entidades")); cb("visitas", await leer("visitas")); };
+      refrescar();
+      sb.channel("cambios")
+        .on("postgres_changes", { event: "*", schema: "public", table: "entidades" }, refrescar)
+        .on("postgres_changes", { event: "*", schema: "public", table: "visitas" }, refrescar)
+        .subscribe();
+    },
+    async guardar(col, obj) { const { error } = await sb.from(col).upsert(aFila(obj)); if (error) throw error; if (alCambiar) alCambiar(col, await leer(col)); },
+    async borrar(col, id) { const { error } = await sb.from(col).delete().eq("id", id); if (error) throw error; if (alCambiar) alCambiar(col, await leer(col)); },
+    async guardarLote(col, objs) { const { error } = await sb.from(col).upsert(objs.map(aFila)); if (error) throw error; if (alCambiar) alCambiar(col, await leer(col)); },
+    async probarEdicion() {
+      const { data } = await sb.auth.getSession();
+      const correo = data && data.session && data.session.user ? data.session.user.email : null;
+      if (!correo) return "sesion";
+      const { data: eds } = await sb.from("editores").select("email");
+      if (!eds) return false;
+      return eds.some((r) => (r.email || "").toLowerCase() === correo.toLowerCase());
+    }
+  };
+}
+
+function storeLocal() {
+  const CLAVE = "visitas-entidades-v1";
+  let cache = { entidades: [], visitas: [] };
+  try { cache = Object.assign(cache, JSON.parse(localStorage.getItem(CLAVE) || "{}")); } catch (e) {}
+  let alCambiar = null;
+  const persistir = () => { try { localStorage.setItem(CLAVE, JSON.stringify(cache)); } catch (e) {} };
+  const emitir = (col) => { if (alCambiar) alCambiar(col, cache[col].slice()); };
+  return {
+    tipo: "local",
+    etiqueta: "Este navegador (sin servidor)",
+    edicionDirecta: true,
+    escucha(cb) { alCambiar = cb; emitir("entidades"); emitir("visitas"); },
+    async guardar(col, obj) { const i = cache[col].findIndex((x) => x.id === obj.id); if (i >= 0) cache[col][i] = obj; else cache[col].push(obj); persistir(); emitir(col); },
+    async borrar(col, id) { cache[col] = cache[col].filter((x) => x.id !== id); persistir(); emitir(col); },
+    async guardarLote(col, objs) { objs.forEach((o) => { const i = cache[col].findIndex((x) => x.id === o.id); if (i >= 0) cache[col][i] = o; else cache[col].push(o); }); persistir(); emitir(col); },
+    async probarEdicion() { return true; }
+  };
+}
+</script>
+<script>
+/* ---------------------- estado ---------------------- */
+const EJEMPLO = datosEjemplo();
+const S = {
+  reales: { entidades: [], visitas: [] },
+  entidades: EJEMPLO.entidades,
+  visitas: EJEMPLO.visitas,
+  ejemplo: true,
+  store: null,
+  edicion: false,
+  tab: "pendientes",
+  diaSel: null,
+  filtros: { q: "", estado: "", resultado: "" },
+  hoy: hoyISO(),
+  ultimoCambio: null
+};
+
+function aplicar(col, filas) {
+  S.reales[col] = filas;
+  S.ejemplo = S.reales.entidades.length === 0;
+  S.entidades = S.ejemplo ? EJEMPLO.entidades : S.reales.entidades;
+  S.visitas = S.ejemplo ? EJEMPLO.visitas : S.reales.visitas;
+  S.ultimoCambio = new Date();
+  render();
+}
+
+function conEstado() {
+  const porEnt = new Map();
+  S.visitas.forEach((v) => { if (!porEnt.has(v.entidad_id)) porEnt.set(v.entidad_id, []); porEnt.get(v.entidad_id).push(v); });
+  return S.entidades.map((e) => {
+    const vs = (porEnt.get(e.id) || []).slice().sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
+    const realizadas = vs.filter((v) => v.estado === "realizada");
+    const ultima = realizadas[realizadas.length - 1] || null;
+    const prog = vs.filter((v) => v.estado === "programada");
+    const prox = prog.find((v) => v.fecha >= S.hoy) || prog[0] || null;
+    let estado = "sin_carta";
+    if (ultima) estado = "visitada";
+    else if (prog.length) estado = "programada";
+    else if (e.carta_estado === "cursada") estado = "por_programar";
+    return { ...e, vs, ultima, prox, prog, estado, resultado: ultima ? (ultima.resultado || "") : "" };
+  }).sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), "es"));
+}
+
+function pendientes(lista) {
+  const cmp = (a, b) => String(a.fecha).localeCompare(String(b.fecha));
+  return {
+    cartas: lista.filter((e) => e.carta_estado !== "cursada"),
+    porProgramar: lista.filter((e) => e.carta_estado === "cursada" && !e.prog.length && !e.ultima),
+    vencidas: S.visitas.filter((v) => v.estado === "programada" && v.fecha < S.hoy).sort(cmp),
+    proximas: S.visitas.filter((v) => v.estado === "programada" && v.fecha >= S.hoy).sort(cmp),
+    sinResultado: S.visitas.filter((v) => v.estado === "realizada" && !v.resultado).sort(cmp)
+  };
+}
+
+const nombreDe = (id) => { const e = S.entidades.find((x) => x.id === id); return e ? e.nombre : "Entidad eliminada"; };
+const CHIP = {
+  sin_carta: '<span class="chip pend">Carta por cursar</span>',
+  por_programar: '<span class="chip neutro">Visita por programar</span>',
+  programada: '<span class="chip info">Visita programada</span>',
+  visitada: '<span class="chip ok">Visitada</span>'
+};
+const chipResultado = (r) => r === "positivo" ? '<span class="chip ok">Positivo</span>'
+  : r === "negativo" ? '<span class="chip mal">Negativo</span>'
+  : '<span class="chip neutro">Sin resultado</span>';
+
+/* ---------------------- render ---------------------- */
+function render() {
+  const lista = conEstado();
+  const p = pendientes(lista);
+  renderAcceso();
+  renderAviso();
+  renderKpis(lista, p);
+  renderPendientes(p);
+  renderCalendario(lista);
+  renderPadron(lista);
+  const total = p.cartas.length + p.porProgramar.length + p.vencidas.length + p.proximas.length + p.sinResultado.length;
+  $("#cuenta-pendientes").textContent = total;
+  $("#cuenta-padron").textContent = S.entidades.length;
+  $("#pie-fuente").textContent = "Datos: " + (S.store ? S.store.etiqueta : "cargando…");
+  $("#pie-actualizado").textContent = S.ultimoCambio ? "Actualizado " + S.ultimoCambio.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" }) : "";
+}
+
+function renderAcceso() {
+  const pill = $("#pill-acceso"), btn = $("#btn-edicion");
+  pill.classList.toggle("editando", S.edicion);
+  $("#txt-acceso").textContent = S.edicion ? "Edición activa" : "Solo lectura";
+  btn.textContent = S.edicion ? "Salir de edición" : "Activar edición";
+}
+
+function renderAviso() {
+  const c = $("#aviso-fuente");
+  if (S.ejemplo) {
+    c.innerHTML = '<div class="aviso demo"><span><b>Datos de ejemplo.</b> Todavía no hay padrón cargado: lo que ves abajo es una muestra para mostrar cómo se verá. Importa tu padrón para reemplazarla.</span>'
+      + (S.edicion ? '<button class="btn chico" id="aviso-importar">Importar padrón</button>' : "") + "</div>";
+    const b = $("#aviso-importar"); if (b) b.onclick = () => $("#dlg-importar").showModal();
+  } else if (S.store && S.store.tipo === "local") {
+    c.innerHTML = '<div class="aviso"><span><b>Modo local.</b> La información se guarda solo en este navegador. Para compartirla, publica el panel con base de datos en línea.</span></div>';
+  } else c.innerHTML = "";
+}
+
+function renderKpis(lista, p) {
+  const cursadas = lista.filter((e) => e.carta_estado === "cursada").length;
+  const visitadas = lista.filter((e) => e.estado === "visitada").length;
+  const realizadas = S.visitas.filter((v) => v.estado === "realizada").length;
+  const pos = S.visitas.filter((v) => v.resultado === "positivo").length;
+  const neg = S.visitas.filter((v) => v.resultado === "negativo").length;
+  const avance = S.entidades.length ? Math.round((visitadas / S.entidades.length) * 100) : 0;
+  const prox = p.proximas[0];
+  const tiles = [
+    { rot: "Entidades del padrón", cifra: S.entidades.length, nota: cursadas + " con carta cursada", cls: "" },
+    { rot: "Cartas por cursar", cifra: p.cartas.length, nota: p.cartas.length ? "Trámite pendiente" : "Al día", cls: p.cartas.length ? "pend" : "" },
+    { rot: "Visitas programadas", cifra: p.proximas.length, nota: prox ? "Próxima: " + fCorta(prox.fecha) : "Ninguna en agenda", cls: "" },
+    { rot: "Visitas realizadas", cifra: realizadas, nota: visitadas + " de " + S.entidades.length + " entidades (" + avance + "%)", cls: "", barra: avance },
+    { rot: "Resultado positivo", cifra: pos, nota: neg + " con resultado negativo · " + p.sinResultado.length + " sin registrar", cls: "bien" }
+  ];
+  $("#kpis").innerHTML = tiles.map((t) =>
+    '<div class="kpi ' + t.cls + '"><span class="rotulo">' + t.rot + '</span><span class="cifra">' + t.cifra + "</span>"
+    + '<span class="nota">' + esc(t.nota) + "</span>"
+    + (t.barra !== undefined ? '<span class="barra"><span style="width:' + t.barra + '%"></span></span>' : "") + "</div>"
+  ).join("");
+}
+
+function filaEnt(e, acciones) {
+  return '<li class="item"><div class="cuerpo"><div class="nombre">' + esc(e.nombre) + "</div>"
+    + '<div class="meta">' + (e.ubicacion ? "<span>" + esc(e.ubicacion) + "</span>" : "")
+    + (e.responsable ? "<span>" + esc(e.responsable) + "</span>" : "")
+    + (e.carta_numero ? "<span>" + esc(e.carta_numero) + "</span>" : "") + "</div></div>"
+    + '<div class="acciones">' + acciones + "</div></li>";
+}
+function filaVisita(v, acciones, urgente) {
+  const d = aDate(v.fecha);
+  const dif = dias(S.hoy, v.fecha);
+  const cuando = dif === 0 ? "hoy" : dif === 1 ? "mañana" : dif > 0 ? "en " + dif + " días" : "hace " + Math.abs(dif) + " días";
+  return '<li class="item"><div class="fecha"><b>' + d.getDate() + "</b>" + MES_CORTO[d.getMonth()] + "</div>"
+    + '<div class="cuerpo"><div class="nombre">' + esc(nombreDe(v.entidad_id)) + "</div>"
+    + '<div class="meta"><span' + (urgente ? ' style="color:var(--crit);font-weight:600"' : "") + ">" + cuando + "</span>"
+    + (v.hora ? "<span>" + esc(v.hora) + "</span>" : "")
+    + (v.responsable ? "<span>" + esc(v.responsable) + "</span>" : "")
+    + (v.nota ? "<span>" + esc(v.nota) + "</span>" : "") + "</div></div>"
+    + '<div class="acciones">' + acciones + "</div></li>";
+}
+
+function renderPendientes(p) {
+  const ed = S.edicion;
+  const bE = (id, txt, cls) => ed ? '<button class="btn chico ' + (cls || "") + '" data-ent="' + id + '" data-accion="' + txt + '">' + txt + "</button>" : "";
+  const bV = (id, txt, cls) => ed ? '<button class="btn chico ' + (cls || "") + '" data-vis="' + id + '" data-accion="' + txt + '">' + txt + "</button>" : "";
+  const bloque = (titulo, glosa, filas, vacio, urgente) =>
+    filas.length
+      ? '<section class="bloque' + (urgente ? " urgente" : "") + '"><header><h2>' + titulo + '</h2><span class="cuenta">' + filas.length + "</span>"
+        + '<span class="glosa">' + glosa + '</span></header><ul class="lista">' + filas.join("") + "</ul></section>"
+      : '<section class="bloque vacia"><header><h2>' + titulo + '</h2><span class="cuenta">0</span><span class="glosa">' + vacio + "</span></header></section>";
+
+  let html = "";
+  if (p.vencidas.length) {
+    html += bloque("Visitas vencidas sin registrar", "programadas antes de hoy",
+      p.vencidas.map((v) => filaVisita(v, bV(v.id, "Positivo") + bV(v.id, "Negativo") + bV(v.id, "Editar"), true)), "", true);
+  }
+  html += bloque("Cartas por cursar", "paso previo a la inspección",
+    p.cartas.map((e) => filaEnt(e, bE(e.id, "Marcar cursada", "primario") + bE(e.id, "Editar"))),
+    "Al día: todas las entidades tienen carta cursada.");
+  html += bloque("Visitas por programar", "con carta cursada y sin fecha",
+    p.porProgramar.map((e) => filaEnt(e, bE(e.id, "Programar", "primario") + bE(e.id, "Editar"))),
+    "Al día: ninguna entidad espera fecha de visita.");
+  html += bloque("Próximas visitas", "agenda vigente",
+    p.proximas.map((v) => filaVisita(v, bV(v.id, "Positivo") + bV(v.id, "Negativo") + bV(v.id, "Editar"))),
+    S.entidades.length ? "Sin visitas en agenda." : "Sin visitas en agenda.");
+  html += bloque("Realizadas sin resultado", "falta consignar el resultado",
+    p.sinResultado.map((v) => filaVisita(v, bV(v.id, "Positivo") + bV(v.id, "Negativo") + bV(v.id, "Editar"))),
+    "Al día: todas las visitas realizadas tienen resultado.");
+  $("#vista-pendientes").innerHTML = html;
+}
+
+function nombreCorto(n) {
+  return String(n)
+    .replace(/^Municipalidad\s+Distrital\s+de\s+(la\s+)?/i, "M.D. ")
+    .replace(/^Municipalidad\s+Provincial\s+de\s+(la\s+)?/i, "M.P. ")
+    .replace(/^Municipalidad\s+de\s+/i, "Mun. ")
+    .replace(/^Direcci[oó]n\s+Regional\s+de\s+/i, "D.R. ")
+    .replace(/^Gobierno\s+Regional\s+de\s+/i, "G.R. ")
+    .replace(/^Unidad\s+de\s+Gesti[oó]n\s+Educativa\s+Local/i, "UGEL");
+}
+
+function claseVisita(v) {
+  if (v.estado === "programada") return "prog";
+  if (v.estado === "realizada") return v.resultado === "positivo" ? "ok" : v.resultado === "negativo" ? "mal" : "pend";
+  return "pend";
+}
+
+function renderCalendario() {
+  const porDia = new Map();
+  S.visitas.forEach((v) => { if (!v.fecha) return; if (!porDia.has(v.fecha)) porDia.set(v.fecha, []); porDia.get(v.fecha).push(v); });
+  const html = CONFIG.meses.map((mes) => {
+    const [a, m] = mes.split("-").map(Number);
+    const primero = new Date(a, m - 1, 1);
+    const totalDias = new Date(a, m, 0).getDate();
+    const offset = (primero.getDay() + 6) % 7; /* lunes primero */
+    let celdas = "";
+    for (let i = 0; i < offset; i++) celdas += '<div class="dia fuera" aria-hidden="true"></div>';
+    let progMes = 0, realMes = 0;
+    for (let d = 1; d <= totalDias; d++) {
+      const iso = a + "-" + String(m).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+      const vs = porDia.get(iso) || [];
+      progMes += vs.filter((v) => v.estado === "programada").length;
+      realMes += vs.filter((v) => v.estado === "realizada").length;
+      const dow = new Date(a, m - 1, d).getDay();
+      const chips = vs.slice(0, 2).map((v) => '<span class="mini ' + claseVisita(v) + '" title="' + esc(nombreDe(v.entidad_id)) + (v.hora ? " · " + esc(v.hora) : "") + '">' + esc(nombreCorto(nombreDe(v.entidad_id))) + "</span>").join("");
+      celdas += '<button type="button" class="dia' + (dow === 0 || dow === 6 ? " finde" : "") + (iso === S.hoy ? " hoy" : "") + '"'
+        + ' data-dia="' + iso + '" aria-pressed="' + (S.diaSel === iso) + '"'
+        + ' aria-label="' + fLarga(iso) + ", " + (vs.length ? vs.length + " visita(s)" : "sin visitas") + '">'
+        + '<span class="n">' + d + "</span>"
+        + (chips ? '<span class="chips-dia">' + chips + (vs.length > 2 ? '<span class="mas">+' + (vs.length - 2) + " más</span>" : "") + "</span>" : "")
+        + "</button>";
+    }
+    return '<section class="mes"><h2>' + MES_LARGO[m - 1] + " " + a + "</h2>"
+      + '<div class="resumen-mes"><span>' + progMes + " programadas</span><span>" + realMes + " realizadas</span></div>"
+      + '<div class="grilla">' + ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"].map((x) => '<div class="dow">' + x + "</div>").join("")
+      + celdas + "</div></section>";
+  }).join("");
+  $("#meses").innerHTML = html;
+  renderDetalleDia();
+}
+
+function renderDetalleDia() {
+  const c = $("#detalle-dia");
+  if (!S.diaSel) {
+    c.innerHTML = '<div class="aviso"><span>Selecciona un día del calendario para ver o programar sus visitas.</span>'
+      + (S.edicion ? '<button class="btn chico primario" id="btn-nueva-visita">+ Programar visita</button>' : "") + "</div>";
+  } else {
+    const vs = S.visitas.filter((v) => v.fecha === S.diaSel).sort((a, b) => String(a.hora).localeCompare(String(b.hora)));
+    const ed = S.edicion;
+    const acc = (v) => ed ? '<button class="btn chico" data-vis="' + v.id + '" data-accion="Positivo">Positivo</button>'
+      + '<button class="btn chico" data-vis="' + v.id + '" data-accion="Negativo">Negativo</button>'
+      + '<button class="btn chico" data-vis="' + v.id + '" data-accion="Editar">Editar</button>' : "";
+    c.innerHTML = '<section class="bloque"><header><h2>' + fLarga(S.diaSel) + '</h2><span class="cuenta">' + vs.length + " visita(s)</span>"
+      + (ed ? '<span class="glosa"><button class="btn chico primario" id="btn-nueva-visita">+ Programar en este día</button></span>' : "")
+      + "</header>"
+      + (vs.length ? '<ul class="lista">' + vs.map((v) => '<li class="item"><div class="cuerpo"><div class="nombre">' + esc(nombreDe(v.entidad_id)) + "</div>"
+        + '<div class="meta">' + (v.hora ? "<span>" + esc(v.hora) + "</span>" : "")
+        + (v.responsable ? "<span>" + esc(v.responsable) + "</span>" : "")
+        + (v.nota ? "<span>" + esc(v.nota) + "</span>" : "") + "</div></div>"
+        + '<div class="acciones">' + (v.estado === "programada" ? '<span class="chip info">Programada</span>' : chipResultado(v.resultado)) + acc(v) + "</div></li>").join("") + "</ul>"
+        : '<p class="vacio">Sin visitas registradas en este día.</p>') + "</section>";
+  }
+  const b = $("#btn-nueva-visita");
+  if (b) b.onclick = () => abrirVisita(null, null, S.diaSel || "");
+}
+
+function renderPadron(lista) {
+  const f = S.filtros;
+  const q = f.q.toLowerCase().trim();
+  const filtradas = lista.filter((e) => {
+    if (f.estado && e.estado !== f.estado) return false;
+    if (f.resultado === "sin" && e.resultado) return false;
+    if (f.resultado && f.resultado !== "sin" && e.resultado !== f.resultado) return false;
+    if (q && !((e.nombre || "") + " " + (e.ubicacion || "") + " " + (e.responsable || "")).toLowerCase().includes(q)) return false;
+    return true;
+  });
+  $("#tbody-padron").innerHTML = filtradas.length ? filtradas.map((e) =>
+    "<tr>"
+    + '<td class="ent">' + esc(e.nombre) + (e.ubicacion || e.responsable ? "<small>" + esc([e.ubicacion, e.responsable].filter(Boolean).join(" · ")) + "</small>" : "") + "</td>"
+    + "<td>" + (e.carta_estado === "cursada"
+      ? '<span class="chip ok">Cursada</span>' + (e.carta_fecha ? ' <span class="chip neutro" style="background:none;border:none;padding-left:0">' + fCorta(e.carta_fecha) + "</span>" : "")
+      : '<span class="chip pend">Por cursar</span>') + "</td>"
+    + '<td class="fecha">' + (e.prox ? fCorta(e.prox.fecha) + (e.prox.hora ? " " + esc(e.prox.hora) : "") : e.ultima ? fCorta(e.ultima.fecha) : "—") + "</td>"
+    + "<td>" + CHIP[e.estado] + "</td>"
+    + "<td>" + (e.ultima ? chipResultado(e.resultado) : '<span class="chip neutro">—</span>') + "</td>"
+    + '<td class="acciones">' + (S.edicion
+      ? '<button class="btn chico" data-ent="' + e.id + '" data-accion="Programar">Programar</button> <button class="btn chico" data-ent="' + e.id + '" data-accion="Editar">Editar</button>'
+      : "") + "</td></tr>").join("")
+    : '<tr><td colspan="6" class="vacio">No hay entidades que coincidan con el filtro.</td></tr>';
+}
+</script>
+<script>
+/* ---------------------- interacción ---------------------- */
+function aviso(msg) {
+  let t = $("#toast");
+  if (!t) {
+    t = document.createElement("div"); t.id = "toast";
+    t.style.cssText = "position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:80;background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:9px;font-size:13.5px;font-weight:600;box-shadow:var(--shadow);max-width:min(92vw,420px);text-align:center";
+    document.body.appendChild(t);
+  }
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(t._t); t._t = setTimeout(() => { t.hidden = true; }, 3800);
+}
+const exigeEdicion = () => {
+  if (!S.edicion) { aviso("Activa la edición para modificar los datos."); return false; }
+  if (S.ejemplo) { aviso("Estos son datos de ejemplo. Importa tu padrón o crea una entidad para empezar."); return false; }
+  return true;
+};
+
+/* pestañas */
+$$(".tab").forEach((t) => t.addEventListener("click", () => {
+  S.tab = t.id.replace("tab-", "");
+  $$(".tab").forEach((x) => x.setAttribute("aria-selected", String(x === t)));
+  $$(".vista").forEach((v) => v.classList.toggle("activa", v.id === "vista-" + S.tab));
+}));
+
+/* edición */
+$("#btn-edicion").addEventListener("click", async () => {
+  if (S.edicion) { S.edicion = false; render(); return; }
+  if (!S.store) return;
+  const btn = $("#btn-edicion"); btn.disabled = true; btn.textContent = "Verificando…";
+  let r = false;
+  try { r = await S.store.probarEdicion(); } catch (e) { r = false; }
+  btn.disabled = false;
+  if (r === "sesion") {
+    const correo = prompt("Ingresa tu correo autorizado. Recibirás un enlace de acceso.");
+    if (correo) {
+      const { error } = await S.store.cliente.auth.signInWithOtp({ email: correo.trim(), options: { emailRedirectTo: location.href } });
+      aviso(error ? "No se pudo enviar el enlace: " + error.message : "Enlace enviado a " + correo.trim() + ". Ábrelo desde este dispositivo.");
+    }
+    render(); return;
+  }
+  S.edicion = r === true;
+  if (!S.edicion) aviso("Tu acceso es de solo lectura. Pide al responsable que te habilite como editor.");
+  render();
+});
+
+/* acciones en listas y tablas */
+document.addEventListener("click", async (ev) => {
+  const dia = ev.target.closest("button[data-dia]");
+  if (dia) { S.diaSel = S.diaSel === dia.dataset.dia ? null : dia.dataset.dia; renderCalendario(); return; }
+  const b = ev.target.closest("button[data-accion]");
+  if (!b) return;
+  const acc = b.dataset.accion;
+  if (!exigeEdicion()) return;
+  try {
+    if (b.dataset.ent) {
+      const e = S.entidades.find((x) => x.id === b.dataset.ent); if (!e) return;
+      if (acc === "Editar") return abrirEntidad(e);
+      if (acc === "Programar") return abrirVisita(null, e.id, "");
+      if (acc === "Marcar cursada") { await S.store.guardar("entidades", { ...limpiarEnt(e), carta_estado: "cursada", carta_fecha: e.carta_fecha || S.hoy }); aviso("Carta registrada como cursada."); }
+    } else if (b.dataset.vis) {
+      const v = S.visitas.find((x) => x.id === b.dataset.vis); if (!v) return;
+      if (acc === "Editar") return abrirVisita(v);
+      if (acc === "Positivo" || acc === "Negativo") {
+        await S.store.guardar("visitas", { ...v, estado: "realizada", resultado: acc.toLowerCase() });
+        aviso("Resultado " + acc.toLowerCase() + " registrado.");
+      }
+    }
+  } catch (err) { aviso("No se pudo guardar: " + (err.message || err.code || "error")); }
+});
+
+const limpiarEnt = (e) => ({ id: e.id, nombre: e.nombre, ubicacion: e.ubicacion || "", responsable: e.responsable || "", carta_estado: e.carta_estado || "pendiente", carta_fecha: e.carta_fecha || "", carta_numero: e.carta_numero || "", nota: e.nota || "" });
+
+/* diálogo entidad */
+let entEditando = null;
+function abrirEntidad(e) {
+  entEditando = e || null;
+  $("#dlg-entidad-titulo").textContent = e ? "Editar entidad" : "Nueva entidad";
+  $("#e-nombre").value = e ? e.nombre || "" : "";
+  $("#e-ubicacion").value = e ? e.ubicacion || "" : "";
+  $("#e-responsable").value = e ? e.responsable || "" : "";
+  $("#e-carta-estado").value = e ? e.carta_estado || "pendiente" : "pendiente";
+  $("#e-carta-fecha").value = e ? e.carta_fecha || "" : "";
+  $("#e-carta-numero").value = e ? e.carta_numero || "" : "";
+  $("#e-nota").value = e ? e.nota || "" : "";
+  $("#e-eliminar").hidden = !e;
+  $("#dlg-entidad").showModal();
+}
+$("#form-entidad").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const obj = {
+    id: entEditando ? entEditando.id : uid(),
+    nombre: $("#e-nombre").value.trim(),
+    ubicacion: $("#e-ubicacion").value.trim(),
+    responsable: $("#e-responsable").value.trim(),
+    carta_estado: $("#e-carta-estado").value,
+    carta_fecha: $("#e-carta-fecha").value,
+    carta_numero: $("#e-carta-numero").value.trim(),
+    nota: $("#e-nota").value.trim()
+  };
+  if (!obj.nombre) return;
+  try { await S.store.guardar("entidades", obj); $("#dlg-entidad").close(); aviso("Entidad guardada."); }
+  catch (err) { aviso("No se pudo guardar: " + (err.message || err.code)); }
+});
+$("#e-eliminar").addEventListener("click", async () => {
+  if (!entEditando || !confirm("¿Eliminar «" + entEditando.nombre + "» y sus visitas?")) return;
+  for (const v of S.visitas.filter((v) => v.entidad_id === entEditando.id)) await S.store.borrar("visitas", v.id);
+  await S.store.borrar("entidades", entEditando.id);
+  $("#dlg-entidad").close(); aviso("Entidad eliminada.");
+});
+
+/* diálogo visita */
+let visEditando = null;
+function abrirVisita(v, entidadId, fecha) {
+  visEditando = v || null;
+  $("#dlg-visita-titulo").textContent = v ? "Editar visita" : "Programar visita";
+  $("#v-entidad").innerHTML = conEstado().map((e) => '<option value="' + e.id + '">' + esc(e.nombre) + "</option>").join("");
+  $("#v-entidad").value = v ? v.entidad_id : (entidadId || (S.entidades[0] || {}).id || "");
+  $("#v-fecha").value = v ? v.fecha || "" : (fecha || S.hoy);
+  $("#v-hora").value = v ? v.hora || "" : "";
+  $("#v-estado").value = v ? v.estado || "programada" : "programada";
+  $("#v-resultado").value = v ? v.resultado || "" : "";
+  $("#v-responsable").value = v ? v.responsable || "" : (S.entidades.find((e) => e.id === entidadId) || {}).responsable || "";
+  $("#v-nota").value = v ? v.nota || "" : "";
+  $("#v-eliminar").hidden = !v;
+  $("#dlg-visita").showModal();
+}
+$("#form-visita").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const obj = {
+    id: visEditando ? visEditando.id : uid(),
+    entidad_id: $("#v-entidad").value,
+    fecha: $("#v-fecha").value,
+    hora: $("#v-hora").value,
+    estado: $("#v-estado").value,
+    resultado: $("#v-estado").value === "realizada" ? $("#v-resultado").value : "",
+    responsable: $("#v-responsable").value.trim(),
+    nota: $("#v-nota").value.trim()
+  };
+  if (!obj.entidad_id || !obj.fecha) return;
+  try { await S.store.guardar("visitas", obj); $("#dlg-visita").close(); aviso("Visita guardada."); }
+  catch (err) { aviso("No se pudo guardar: " + (err.message || err.code)); }
+});
+$("#v-eliminar").addEventListener("click", async () => {
+  if (!visEditando || !confirm("¿Eliminar esta visita?")) return;
+  await S.store.borrar("visitas", visEditando.id);
+  $("#dlg-visita").close(); aviso("Visita eliminada.");
+});
+
+/* importar / exportar */
+$("#btn-importar").addEventListener("click", () => { if (S.edicion) $("#dlg-importar").showModal(); else aviso("Activa la edición para importar el padrón."); });
+$("#btn-nueva-entidad").addEventListener("click", () => { if (S.edicion) abrirEntidad(null); else aviso("Activa la edición para agregar entidades."); });
+$("#form-importar").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const filas = parseTabla($("#i-texto").value);
+  if (!filas.length) return aviso("No se reconocieron filas. Revisa que la primera línea sea el encabezado.");
+  try {
+    if ($("#i-reemplazar").checked) {
+      for (const v of S.reales.visitas) await S.store.borrar("visitas", v.id);
+      for (const e of S.reales.entidades) await S.store.borrar("entidades", e.id);
+    }
+    const ents = [], vis = [];
+    filas.forEach((f) => {
+      const id = uid();
+      ents.push({ id, nombre: f.nombre, ubicacion: f.ubicacion, responsable: f.responsable, carta_estado: f.carta_estado, carta_fecha: f.carta_fecha, carta_numero: f.carta_numero, nota: f.nota });
+      if (f._visita) vis.push({ id: uid(), entidad_id: id, fecha: f._visita, hora: "", estado: f._visita < S.hoy ? "realizada" : "programada", resultado: "", responsable: f.responsable, nota: "" });
+    });
+    await S.store.guardarLote("entidades", ents);
+    if (vis.length) await S.store.guardarLote("visitas", vis);
+    $("#dlg-importar").close(); $("#i-texto").value = "";
+    aviso(ents.length + " entidades importadas" + (vis.length ? " y " + vis.length + " visitas" : "") + ".");
+  } catch (err) { aviso("No se pudo importar: " + (err.message || err.code)); }
+});
+$("#btn-exportar").addEventListener("click", async () => {
+  const lista = conEstado();
+  const cab = ["entidad", "ubicacion", "responsable", "carta", "fecha_carta", "n_carta", "proxima_visita", "ultima_visita", "estado", "resultado", "observacion"];
+  const q = (s) => '"' + String(s ?? "").replace(/"/g, '""') + '"';
+  const csv = [cab.join(";")].concat(lista.map((e) => [e.nombre, e.ubicacion, e.responsable, e.carta_estado, e.carta_fecha, e.carta_numero,
+    e.prox ? e.prox.fecha : "", e.ultima ? e.ultima.fecha : "", e.estado, e.resultado, e.nota].map(q).join(";"))).join("\n");
+  const nombre = "padron-visitas-" + S.hoy + ".csv";
+  try {
+    const dl = window.claude && window.claude.use ? await window.claude.use("downloads") : null;
+    if (dl) { await dl.save({ filename: nombre, data: "﻿" + csv }); return; }
+  } catch (e) {}
+  try {
+    const url = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a"); a.href = url; a.download = nombre; a.click(); URL.revokeObjectURL(url);
+  } catch (e) { navigator.clipboard.writeText(csv); aviso("CSV copiado al portapapeles."); }
+});
+
+/* filtros */
+$("#buscar").addEventListener("input", (e) => { S.filtros.q = e.target.value; renderPadron(conEstado()); });
+$("#filtro-estado").addEventListener("change", (e) => { S.filtros.estado = e.target.value; renderPadron(conEstado()); });
+$("#filtro-resultado").addEventListener("change", (e) => { S.filtros.resultado = e.target.value; renderPadron(conEstado()); });
+$$("[data-cerrar]").forEach((b) => b.addEventListener("click", () => b.closest("dialog").close()));
+
+/* ---------------------- arranque ---------------------- */
+(async function iniciar() {
+  $("#titulo-app").textContent = CONFIG.titulo;
+  const ms = CONFIG.meses.map((m) => { const [a, x] = m.split("-").map(Number); return MES_LARGO[x - 1] + " " + a; });
+  $("#periodo-rotulo").textContent = (ms.length > 1 ? ms[0].split(" ")[0] + " – " + ms[ms.length - 1] : ms[0]).replace(/^./, (c) => c.toUpperCase());
+  render();
+  let store = null;
+  if (CONFIG.supabase.url && CONFIG.supabase.anonKey) {
+    try { store = await storeSupabase(CONFIG.supabase); } catch (e) { console.warn("Supabase no disponible:", e.message); }
+  }
+  if (!store) { try { store = await storeClaudeDb(); } catch (e) { console.warn(e); } }
+  if (!store) store = storeLocal();
+  S.store = store;
+  if (store.edicionDirecta) S.edicion = false;
+  store.escucha((col, filas) => aplicar(col, filas));
+  render();
+})();
+</script>
+</body>
+</html>
