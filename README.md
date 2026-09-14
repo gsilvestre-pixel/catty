@@ -1,8 +1,17 @@
 # Cartas e inspecciones a entidades
 
-Panel de seguimiento de las actividades pendientes sobre un padrón de entidades:
-cartas por cursar, visitas programadas, visitas realizadas y su resultado
-(positivo / negativo), con un calendario de **setiembre y octubre**.
+Panel de seguimiento de las actividades pendientes sobre un padrón de entidades,
+con un calendario de **setiembre y octubre**.
+
+El ciclo de cada entidad tiene tres actividades, y cada una registra a **una o
+más personas encargadas**:
+
+1. **Notificar la carta.**
+2. **Primera inspección**, que además define si la entidad **requiere una
+   segunda inspección**.
+3. **Segunda inspección**, cuando la primera la haya requerido.
+
+Cada inspección cierra con resultado **positivo** o **negativo**.
 
 La aplicación es un solo archivo (`index.html`) sin proceso de compilación.
 
@@ -10,10 +19,11 @@ La aplicación es un solo archivo (`index.html`) sin proceso de compilación.
 
 | Sección | Contenido |
 |---|---|
-| **Indicadores** | Entidades del padrón, cartas por cursar, visitas programadas, visitas realizadas (con % de avance) y resultados positivos. |
-| **Pendientes** | Visitas vencidas sin registrar, cartas por cursar, visitas por programar, próximas visitas y visitas realizadas sin resultado. Es la vista por defecto. |
-| **Calendario** | Setiembre y octubre lado a lado. Cada día muestra la entidad y el color del estado; al hacer clic se abren las visitas del día y se puede programar una nueva. |
-| **Padrón** | Tabla completa con búsqueda y filtros por estado y resultado, importación del padrón y exportación a CSV. |
+| **Indicadores** | Entidades del padrón, cartas por notificar, inspecciones en agenda, inspecciones realizadas (primeras y segundas, con % de entidades concluidas) y resultados positivos. |
+| **Pendientes** | Inspecciones vencidas sin registrar, cartas por notificar, primeras inspecciones por programar, entidades donde falta definir si requieren segunda, segundas inspecciones por programar, próximas inspecciones y realizadas sin resultado. Es la vista por defecto. |
+| **Calendario** | Setiembre y octubre lado a lado. Cada día indica si es 1.ª o 2.ª inspección, la entidad y el color del estado; al pasar el cursor se ven los encargados y al hacer clic se abre el día para registrar o programar. |
+| **Responsables** | Carga por persona —cartas notificadas, primeras y segundas inspecciones, actividades en agenda y vencidas— y el listado de actividades que todavía no tienen encargado. |
+| **Padrón** | Tabla completa: notificación, 1.ª inspección, si requiere 2.ª, 2.ª inspección y estado, con los encargados de cada etapa. Incluye búsqueda (también por persona), filtros, importación y exportación a CSV. |
 
 El periodo del calendario se cambia en `CONFIG.meses` (por ejemplo
 `["2026-09", "2026-10", "2026-11"]`).
@@ -75,8 +85,13 @@ admiten enlace público abierto.
 **Padrón → Importar padrón**, pegando desde Excel o en CSV. La primera fila es
 el encabezado; se reconocen (en cualquier orden, y se ignora lo demás):
 
-`entidad` · `ubicación` · `responsable` · `carta` · `fecha carta` ·
-`n° carta` · `fecha visita` · `observación`
+`entidad` · `ubicación` · `responsable` (o `responsables`) · `carta` ·
+`fecha carta` · `n° carta` · `fecha visita` · `observación`
+
+Cuando una actividad tiene varias personas, sepáralas con `/`, `,` o `;`
+(por ejemplo `J. Quispe / L. Ramos`). Los encargados importados quedan como
+responsables de la notificación de la carta y se proponen por defecto al
+programar la inspección.
 
 Fechas admitidas: `2026-09-14`, `14/09/2026` o `14-09-26`.
 
@@ -84,6 +99,6 @@ Fechas admitidas: `2026-09-14`, `14/09/2026` o `14-09-26`.
 
 ```
 index.html                 aplicación completa (HTML + CSS + JS)
-db/schema.sql              tablas, restricciones y RLS para PostgreSQL
+db/schema.sql              tablas, restricciones, vista de carga y RLS para PostgreSQL
 tools/build-artifact.mjs   genera la variante publicable como Artifact
 ```

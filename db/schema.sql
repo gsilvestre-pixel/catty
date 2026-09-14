@@ -39,40 +39,66 @@ $$;
 -- 2. Padrón de entidades
 -- ------------------------------------------------------------------
 create table if not exists public.entidades (
-  id             uuid primary key default gen_random_uuid(),
-  nombre         text not null,
-  ubicacion      text not null default '',
-  responsable    text not null default '',
-  carta_estado   text not null default 'pendiente'
-                 check (carta_estado in ('pendiente', 'cursada')),
-  carta_fecha    date,
-  carta_numero   text not null default '',
-  nota           text not null default '',
+  id                 uuid primary key default gen_random_uuid(),
+  nombre             text not null,
+  ubicacion          text not null default '',
+  carta_estado       text not null default 'pendiente'
+                     check (carta_estado in ('pendiente', 'cursada')),
+  carta_fecha        date,
+  carta_numero       text not null default '',
+  -- actividad 1: quiénes tuvieron a cargo la notificación de la carta
+  carta_responsables text[] not null default '{}',
+  nota               text not null default '',
   creado_en      timestamptz not null default now(),
   actualizado_en timestamptz not null default now()
 );
 
 -- ------------------------------------------------------------------
--- 3. Visitas (programadas y realizadas)
+-- 3. Inspecciones (actividades 2 y 3: primera y segunda)
 -- ------------------------------------------------------------------
 create table if not exists public.visitas (
-  id             uuid primary key default gen_random_uuid(),
-  entidad_id     uuid not null references public.entidades(id) on delete cascade,
-  fecha          date not null,
-  hora           time,
-  estado         text not null default 'programada'
-                 check (estado in ('programada', 'realizada', 'no_realizada')),
-  resultado      text check (resultado in ('positivo', 'negativo')),
-  responsable    text not null default '',
-  nota           text not null default '',
-  creado_en      timestamptz not null default now(),
-  actualizado_en timestamptz not null default now(),
-  -- el resultado solo tiene sentido en una visita realizada
-  constraint resultado_coherente check (resultado is null or estado = 'realizada')
+  id               uuid primary key default gen_random_uuid(),
+  entidad_id       uuid not null references public.entidades(id) on delete cascade,
+  tipo             text not null default 'primera'
+                   check (tipo in ('primera', 'segunda')),
+  fecha            date not null,
+  hora             time,
+  estado           text not null default 'programada'
+                   check (estado in ('programada', 'realizada', 'no_realizada')),
+  resultado        text check (resultado in ('positivo', 'negativo')),
+  -- lo define la primera inspección
+  requiere_segunda text check (requiere_segunda in ('si', 'no')),
+  -- quiénes tuvieron a cargo la inspección (una o más personas)
+  responsables     text[] not null default '{}',
+  nota             text not null default '',
+  creado_en        timestamptz not null default now(),
+  actualizado_en   timestamptz not null default now(),
+  -- el resultado solo tiene sentido en una inspección realizada
+  constraint resultado_coherente check (resultado is null or estado = 'realizada'),
+  -- solo la primera inspección define si hace falta una segunda
+  constraint segunda_solo_en_primera check (requiere_segunda is null or tipo = 'primera')
 );
 
 create index if not exists visitas_fecha_idx    on public.visitas (fecha);
 create index if not exists visitas_entidad_idx  on public.visitas (entidad_id);
+create index if not exists visitas_responsables_idx on public.visitas using gin (responsables);
+
+-- Carga de trabajo por persona (las tres actividades en una sola consulta)
+create or replace view public.carga_por_persona as
+  select persona,
+         count(*) filter (where actividad = 'carta')    as cartas_notificadas,
+         count(*) filter (where actividad = 'primera')  as primeras_inspecciones,
+         count(*) filter (where actividad = 'segunda')  as segundas_inspecciones
+  from (
+    select unnest(carta_responsables) as persona, 'carta' as actividad
+      from public.entidades where carta_estado = 'cursada'
+    union all
+    select unnest(responsables) as persona, tipo as actividad
+      from public.visitas where estado = 'realizada'
+  ) t
+  where persona <> ''
+  group by persona
+  order by persona;
 
 -- ------------------------------------------------------------------
 -- 4. Marca de tiempo de actualización

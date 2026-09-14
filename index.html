@@ -198,7 +198,8 @@ main{padding-bottom:64px}
 
 /* ---------- Tabla padrón ---------- */
 .tabla-scroll{overflow-x:auto}
-table{border-collapse:collapse; width:100%; font-size:14px; min-width:720px}
+table{border-collapse:collapse; width:100%; font-size:14px; min-width:940px}
+td.ent{min-width:180px}
 th{
   text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-3);
   font-weight:600; padding:9px 12px; border-bottom:1px solid var(--line); background:var(--surface-2); white-space:nowrap;
@@ -245,6 +246,22 @@ dialog footer .izq{margin-right:auto}
 @media (max-width:520px){ .fila{grid-template-columns:1fr} }
 textarea{resize:vertical; min-height:62px; font-family:var(--sans)}
 .ayuda{font-size:12.5px; color:var(--ink-3)}
+.tipo{
+  font-family:var(--mono); font-size:10px; font-weight:500; color:var(--ink-2);
+  border:1px solid var(--line); border-radius:4px; padding:0 4px; margin-right:5px; white-space:nowrap;
+}
+.quien{display:inline-flex; gap:4px; flex-wrap:wrap; align-items:center}
+.persona{font-size:11.5px; font-weight:600; color:var(--ink-2); background:var(--surface-3); border-radius:99px; padding:1px 8px; white-space:nowrap}
+.persona.sin{color:var(--warn); background:var(--warn-soft)}
+.chips-in{display:flex; flex-wrap:wrap; gap:5px; align-items:center; border:1px solid var(--line); border-radius:8px; padding:5px 6px; background:var(--surface)}
+.chips-in:focus-within{border-color:var(--accent)}
+.chips-in input{border:none; outline:none; background:none; flex:1; min-width:120px; padding:2px}
+.chips-in .persona{display:inline-flex; align-items:center; gap:2px; font-size:12.5px; padding:2px 4px 2px 9px}
+.chips-in .quita{border:none; background:none; cursor:pointer; color:inherit; font-size:14px; line-height:1; padding:0 4px; border-radius:99px}
+.chips-in .quita:hover{background:var(--line)}
+td .quien{margin-top:2px}
+td .linea{display:flex; align-items:center; gap:6px; flex-wrap:wrap}
+.nada{color:var(--ink-3); font-family:var(--mono); font-size:13px}
 .pie{padding:22px 0 0; font-size:12.5px; color:var(--ink-3); display:flex; gap:14px; flex-wrap:wrap}
 
 @media (max-width:760px){
@@ -275,6 +292,7 @@ textarea{resize:vertical; min-height:62px; font-family:var(--sans)}
   <nav class="tabs" role="tablist" aria-label="Secciones">
     <button class="tab" role="tab" id="tab-pendientes" aria-controls="vista-pendientes" aria-selected="true">Pendientes <span class="cuenta" id="cuenta-pendientes">0</span></button>
     <button class="tab" role="tab" id="tab-calendario" aria-controls="vista-calendario" aria-selected="false">Calendario</button>
+    <button class="tab" role="tab" id="tab-responsables" aria-controls="vista-responsables" aria-selected="false">Responsables</button>
     <button class="tab" role="tab" id="tab-padron" aria-controls="vista-padron" aria-selected="false">Padrón <span class="cuenta" id="cuenta-padron">0</span></button>
   </nav>
 
@@ -293,16 +311,21 @@ textarea{resize:vertical; min-height:62px; font-family:var(--sans)}
     <div id="detalle-dia"></div>
   </section>
 
+  <section class="vista" id="vista-responsables" role="tabpanel" aria-labelledby="tab-responsables"></section>
+
   <section class="vista" id="vista-padron" role="tabpanel" aria-labelledby="tab-padron">
     <div class="bloque">
       <div class="filtros">
         <input type="text" id="buscar" class="buscador" placeholder="Buscar entidad, ubicación o responsable…" aria-label="Buscar">
         <select id="filtro-estado" aria-label="Filtrar por estado">
           <option value="">Todos los estados</option>
-          <option value="sin_carta">Carta por cursar</option>
-          <option value="por_programar">Visita por programar</option>
-          <option value="programada">Visita programada</option>
-          <option value="visitada">Visitada</option>
+          <option value="sin_carta">Carta por notificar</option>
+          <option value="por_programar_1">1.ª inspección por programar</option>
+          <option value="programada_1">1.ª inspección programada</option>
+          <option value="por_definir">Falta definir si requiere 2.ª</option>
+          <option value="por_programar_2">2.ª inspección por programar</option>
+          <option value="programada_2">2.ª inspección programada</option>
+          <option value="cerrado">Concluido</option>
         </select>
         <select id="filtro-resultado" aria-label="Filtrar por resultado">
           <option value="">Todo resultado</option>
@@ -317,7 +340,7 @@ textarea{resize:vertical; min-height:62px; font-family:var(--sans)}
       <div class="tabla-scroll">
         <table>
           <thead><tr>
-            <th>Entidad</th><th>Carta</th><th>Visita</th><th>Estado</th><th>Resultado</th><th></th>
+            <th>Entidad</th><th>Notificación de carta</th><th>1.ª inspección</th><th>¿2.ª?</th><th>2.ª inspección</th><th>Estado</th><th></th>
           </tr></thead>
           <tbody id="tbody-padron"></tbody>
         </table>
@@ -330,6 +353,8 @@ textarea{resize:vertical; min-height:62px; font-family:var(--sans)}
     <span id="pie-actualizado"></span>
   </p>
 </main>
+
+<datalist id="lista-personal"></datalist>
 
 <dialog id="dlg-entidad">
   <form method="dialog" id="form-entidad">
@@ -345,8 +370,8 @@ textarea{resize:vertical; min-height:62px; font-family:var(--sans)}
           <input type="text" id="e-ubicacion" maxlength="120" placeholder="Distrito / provincia">
         </div>
         <div class="campo">
-          <label for="e-responsable">Responsable</label>
-          <input type="text" id="e-responsable" maxlength="80" placeholder="Quién inspecciona">
+          <label for="e-carta-numero">N° de carta / oficio</label>
+          <input type="text" id="e-carta-numero" maxlength="60" placeholder="Opcional">
         </div>
       </div>
       <div class="fila">
@@ -363,8 +388,8 @@ textarea{resize:vertical; min-height:62px; font-family:var(--sans)}
         </div>
       </div>
       <div class="campo">
-        <label for="e-carta-numero">N° de carta / oficio</label>
-        <input type="text" id="e-carta-numero" maxlength="60" placeholder="Opcional">
+        <label for="e-resp-in">Notificación a cargo de</label>
+        <div class="chips-in" id="e-resp"><input type="text" id="e-resp-in" list="lista-personal" placeholder="Nombre + Enter"></div>
       </div>
       <div class="campo">
         <label for="e-nota">Observación</label>
@@ -386,6 +411,23 @@ textarea{resize:vertical; min-height:62px; font-family:var(--sans)}
       <div class="campo">
         <label for="v-entidad">Entidad</label>
         <select id="v-entidad" required></select>
+      </div>
+      <div class="fila">
+        <div class="campo">
+          <label for="v-tipo">Actividad</label>
+          <select id="v-tipo">
+            <option value="primera">1.ª inspección</option>
+            <option value="segunda">2.ª inspección</option>
+          </select>
+        </div>
+        <div class="campo" id="campo-requiere">
+          <label for="v-requiere">¿Requiere 2.ª inspección?</label>
+          <select id="v-requiere">
+            <option value="">Por definir</option>
+            <option value="si">Sí</option>
+            <option value="no">No</option>
+          </select>
+        </div>
       </div>
       <div class="fila">
         <div class="campo">
@@ -416,8 +458,8 @@ textarea{resize:vertical; min-height:62px; font-family:var(--sans)}
         </div>
       </div>
       <div class="campo">
-        <label for="v-responsable">Responsable</label>
-        <input type="text" id="v-responsable" maxlength="80" placeholder="Quién realiza la visita">
+        <label for="v-resp-in">Inspección a cargo de</label>
+        <div class="chips-in" id="v-resp"><input type="text" id="v-resp-in" list="lista-personal" placeholder="Nombre + Enter"></div>
       </div>
       <div class="campo">
         <label for="v-nota">Observación</label>
@@ -514,7 +556,7 @@ function parseTabla(texto) {
   const idx = {
     nombre: col("entidad", "nombre", "razonsocial", "denominacion"),
     ubicacion: col("ubicacion", "distrito", "provincia", "departamento", "localidad", "direccion"),
-    responsable: col("responsable", "encargado", "inspector", "supervisor"),
+    responsable: col("responsable", "responsables", "encargado", "encargados", "inspector", "supervisor", "personal"),
     carta: col("carta", "estadocarta", "oficio"),
     cartaFecha: col("fechacarta", "fechadecarta", "fechaoficio"),
     cartaNumero: col("ncarta", "nrocarta", "numerocarta", "numerodecarta", "ndecarta"),
@@ -531,7 +573,7 @@ function parseTabla(texto) {
     filas.push({
       nombre,
       ubicacion: val("ubicacion"),
-      responsable: val("responsable"),
+      responsables: val("responsable").split(/[,\/;|]+/).map((x) => x.trim()).filter(Boolean),
       carta_estado: /curs|envi|si|remit/i.test(val("carta")) ? "cursada" : "pendiente",
       carta_fecha: aISO(val("cartaFecha")),
       carta_numero: val("cartaNumero"),
@@ -554,30 +596,29 @@ function aISO(v) {
 
 /* ---------------------- datos de ejemplo (no se guardan) ---------------------- */
 function datosEjemplo() {
-  const e = (nombre, ubicacion, responsable, carta_estado, carta_fecha, carta_numero) =>
-    ({ id: uid(), nombre, ubicacion, responsable, carta_estado, carta_fecha, carta_numero, nota: "" });
+  const e = (nombre, ubicacion, carta_estado, carta_fecha, carta_numero, carta_responsables) =>
+    ({ id: uid(), nombre, ubicacion, carta_estado, carta_fecha, carta_numero, carta_responsables, nota: "" });
   const ents = [
-    e("Municipalidad Distrital de Santiago", "Cusco", "J. Quispe", "cursada", "2026-09-02", "CARTA 112-2026"),
-    e("Municipalidad Provincial de Huaura", "Lima", "R. Vargas", "cursada", "2026-09-03", "CARTA 113-2026"),
-    e("UGEL 06 Ate", "Lima", "J. Quispe", "cursada", "2026-09-05", "CARTA 118-2026"),
-    e("Hospital Regional de Ica", "Ica", "M. Flores", "cursada", "2026-09-08", "CARTA 121-2026"),
-    e("EPS Tacna S.A.", "Tacna", "R. Vargas", "cursada", "2026-09-10", "CARTA 124-2026"),
-    e("Municipalidad Distrital de Yarinacocha", "Ucayali", "M. Flores", "pendiente", "", ""),
-    e("Dirección Regional de Transportes de Puno", "Puno", "", "pendiente", "", ""),
-    e("Municipalidad Distrital de Pátapo", "Lambayeque", "", "pendiente", "", "")
+    e("Municipalidad Distrital de Santiago", "Cusco", "cursada", "2026-09-02", "CARTA 112-2026", ["J. Quispe"]),
+    e("Municipalidad Provincial de Huaura", "Lima", "cursada", "2026-09-03", "CARTA 113-2026", ["R. Vargas"]),
+    e("UGEL 06 Ate", "Lima", "cursada", "2026-09-05", "CARTA 118-2026", ["J. Quispe", "L. Ramos"]),
+    e("Hospital Regional de Ica", "Ica", "cursada", "2026-09-08", "CARTA 121-2026", ["M. Flores"]),
+    e("EPS Tacna S.A.", "Tacna", "cursada", "2026-09-10", "CARTA 124-2026", ["R. Vargas"]),
+    e("Municipalidad Distrital de Yarinacocha", "Ucayali", "pendiente", "", "", ["M. Flores"]),
+    e("Dirección Regional de Transportes de Puno", "Puno", "pendiente", "", "", []),
+    e("Municipalidad Distrital de Pátapo", "Lambayeque", "pendiente", "", "", [])
   ];
-  const v = (i, fecha, hora, estado, resultado, nota) =>
-    ({ id: uid(), entidad_id: ents[i].id, fecha, hora, estado, resultado, responsable: ents[i].responsable, nota: nota || "" });
+  const v = (i, tipo, fecha, hora, estado, resultado, requiere_segunda, responsables, nota) =>
+    ({ id: uid(), entidad_id: ents[i].id, tipo, fecha, hora, estado, resultado, requiere_segunda, responsables, nota: nota || "" });
   const vis = [
-    v(0, "2026-09-08", "09:00", "realizada", "positivo", "Documentación completa."),
-    v(1, "2026-09-09", "10:30", "realizada", "negativo", "No exhibió acervo documentario."),
-    v(2, "2026-09-11", "09:00", "realizada", "positivo", ""),
-    v(3, "2026-09-12", "11:00", "realizada", "", "Acta pendiente de suscripción."),
-    v(4, "2026-09-16", "09:30", "programada", "", ""),
-    v(0, "2026-09-23", "15:00", "programada", "", "Segunda visita de verificación."),
-    v(1, "2026-10-01", "09:00", "programada", "", ""),
-    v(2, "2026-10-07", "10:00", "programada", "", ""),
-    v(3, "2026-10-15", "09:00", "programada", "", "")
+    v(0, "primera", "2026-09-08", "09:00", "realizada", "positivo", "no", ["J. Quispe", "L. Ramos"], "Documentación completa."),
+    v(1, "primera", "2026-09-09", "10:30", "realizada", "negativo", "si", ["R. Vargas"], "No exhibió acervo documentario."),
+    v(2, "primera", "2026-09-11", "09:00", "realizada", "positivo", "", ["J. Quispe"], ""),
+    v(3, "primera", "2026-09-12", "11:00", "realizada", "", "", ["M. Flores", "L. Ramos"], "Acta pendiente de suscripción."),
+    v(4, "primera", "2026-09-16", "09:30", "programada", "", "", ["R. Vargas"], ""),
+    v(1, "segunda", "2026-10-01", "09:00", "programada", "", "", ["R. Vargas", "M. Flores"], "Verificación de lo observado."),
+    v(2, "segunda", "2026-10-07", "10:00", "programada", "", "", ["J. Quispe"], ""),
+    v(3, "segunda", "2026-10-15", "09:00", "programada", "", "", ["M. Flores"], "")
   ];
   return { entidades: ents, visitas: vis };
 }
@@ -617,7 +658,7 @@ async function storeSupabase(cfg) {
   const sb = window.supabase.createClient(cfg.url, cfg.anonKey);
   let alCambiar = null;
   /* PostgreSQL usa NULL donde el formulario usa cadena vacía */
-  const CAMPOS_NULOS = ["fecha", "hora", "carta_fecha", "resultado"];
+  const CAMPOS_NULOS = ["fecha", "hora", "carta_fecha", "resultado", "requiere_segunda"];
   const aFila = (o) => { const c = { ...o }; CAMPOS_NULOS.forEach((k) => { if (c[k] === "") c[k] = null; }); return c; };
   const deFila = (r) => {
     const c = { ...r };
@@ -703,28 +744,70 @@ function aplicar(col, filas) {
   render();
 }
 
+/* Las tres actividades del ciclo: notificación de carta, 1.ª inspección
+   (que define si hace falta una segunda) y 2.ª inspección.               */
+const TIPO = { primera: "1.ª", segunda: "2.ª" };
+const ESTADOS = {
+  sin_carta:       ["Carta por notificar", "pend"],
+  por_programar_1: ["1.ª por programar", "neutro"],
+  programada_1:    ["1.ª programada", "info"],
+  por_definir:     ["Definir si requiere 2.ª", "pend"],
+  por_programar_2: ["2.ª por programar", "neutro"],
+  programada_2:    ["2.ª programada", "info"],
+  cerrado:         ["Concluido", "ok"]
+};
+const chipEstado = (k) => '<span class="chip ' + ESTADOS[k][1] + '">' + ESTADOS[k][0] + "</span>";
+const chipResultado = (r) => r === "positivo" ? '<span class="chip ok">Positivo</span>'
+  : r === "negativo" ? '<span class="chip mal">Negativo</span>'
+  : '<span class="chip neutro">Sin resultado</span>';
+const chipRequiere = (r) => r === "si" ? '<span class="chip pend">Sí</span>'
+  : r === "no" ? '<span class="chip neutro">No</span>'
+  : '<span class="chip pend">Por definir</span>';
+
+const listaResp = (v) => Array.isArray(v) ? v.filter(Boolean) : (v ? [String(v)] : []);
+function quien(v, mostrarVacio) {
+  const l = listaResp(v);
+  if (!l.length) return mostrarVacio === false ? "" : '<span class="persona sin">Sin asignar</span>';
+  return '<span class="quien">' + l.map((p) => '<span class="persona">' + esc(p) + "</span>").join("") + "</span>";
+}
+function personal() {
+  const set = new Set();
+  S.entidades.forEach((e) => listaResp(e.carta_responsables).forEach((p) => set.add(p)));
+  S.visitas.forEach((v) => listaResp(v.responsables).forEach((p) => set.add(p)));
+  return Array.from(set).sort((a, b) => a.localeCompare(b, "es"));
+}
+
 function conEstado() {
   const porEnt = new Map();
   S.visitas.forEach((v) => { if (!porEnt.has(v.entidad_id)) porEnt.set(v.entidad_id, []); porEnt.get(v.entidad_id).push(v); });
   return S.entidades.map((e) => {
     const vs = (porEnt.get(e.id) || []).slice().sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
-    const realizadas = vs.filter((v) => v.estado === "realizada");
-    const ultima = realizadas[realizadas.length - 1] || null;
-    const prog = vs.filter((v) => v.estado === "programada");
-    const prox = prog.find((v) => v.fecha >= S.hoy) || prog[0] || null;
-    let estado = "sin_carta";
-    if (ultima) estado = "visitada";
-    else if (prog.length) estado = "programada";
-    else if (e.carta_estado === "cursada") estado = "por_programar";
-    return { ...e, vs, ultima, prox, prog, estado, resultado: ultima ? (ultima.resultado || "") : "" };
+    const de = (t) => vs.filter((v) => (v.tipo || "primera") === t);
+    const hecha = (arr) => arr.filter((v) => v.estado === "realizada").slice(-1)[0] || null;
+    const agenda = (arr) => arr.filter((v) => v.estado === "programada")[0] || null;
+    const v1 = de("primera"), v2 = de("segunda");
+    const p1 = hecha(v1), p1prog = agenda(v1);
+    const p2 = hecha(v2), p2prog = agenda(v2);
+    const requiere = p1 ? (p1.requiere_segunda || "") : "";
+    let estado;
+    if (!p1 && !p1prog) estado = e.carta_estado === "cursada" ? "por_programar_1" : "sin_carta";
+    else if (!p1) estado = "programada_1";
+    else if (!requiere) estado = "por_definir";
+    else if (requiere === "no" || p2) estado = "cerrado";
+    else if (p2prog) estado = "programada_2";
+    else estado = "por_programar_2";
+    const ultima = p2 || p1;
+    return { ...e, vs, p1, p1prog, p2, p2prog, requiere, estado, ultima, resultado: ultima ? (ultima.resultado || "") : "" };
   }).sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), "es"));
 }
 
 function pendientes(lista) {
   const cmp = (a, b) => String(a.fecha).localeCompare(String(b.fecha));
   return {
-    cartas: lista.filter((e) => e.carta_estado !== "cursada"),
-    porProgramar: lista.filter((e) => e.carta_estado === "cursada" && !e.prog.length && !e.ultima),
+    cartas: lista.filter((e) => e.estado === "sin_carta"),
+    prog1: lista.filter((e) => e.estado === "por_programar_1"),
+    definir: lista.filter((e) => e.estado === "por_definir"),
+    prog2: lista.filter((e) => e.estado === "por_programar_2"),
     vencidas: S.visitas.filter((v) => v.estado === "programada" && v.fecha < S.hoy).sort(cmp),
     proximas: S.visitas.filter((v) => v.estado === "programada" && v.fecha >= S.hoy).sort(cmp),
     sinResultado: S.visitas.filter((v) => v.estado === "realizada" && !v.resultado).sort(cmp)
@@ -732,15 +815,6 @@ function pendientes(lista) {
 }
 
 const nombreDe = (id) => { const e = S.entidades.find((x) => x.id === id); return e ? e.nombre : "Entidad eliminada"; };
-const CHIP = {
-  sin_carta: '<span class="chip pend">Carta por cursar</span>',
-  por_programar: '<span class="chip neutro">Visita por programar</span>',
-  programada: '<span class="chip info">Visita programada</span>',
-  visitada: '<span class="chip ok">Visitada</span>'
-};
-const chipResultado = (r) => r === "positivo" ? '<span class="chip ok">Positivo</span>'
-  : r === "negativo" ? '<span class="chip mal">Negativo</span>'
-  : '<span class="chip neutro">Sin resultado</span>';
 
 /* ---------------------- render ---------------------- */
 function render() {
@@ -749,10 +823,12 @@ function render() {
   renderAcceso();
   renderAviso();
   renderKpis(lista, p);
-  renderPendientes(p);
-  renderCalendario(lista);
+  renderPendientes(p, lista);
+  renderCalendario();
+  renderResponsables(lista);
   renderPadron(lista);
-  const total = p.cartas.length + p.porProgramar.length + p.vencidas.length + p.proximas.length + p.sinResultado.length;
+  $("#lista-personal").innerHTML = personal().map((x) => '<option value="' + esc(x) + '"></option>').join("");
+  const total = p.cartas.length + p.prog1.length + p.definir.length + p.prog2.length + p.vencidas.length + p.proximas.length + p.sinResultado.length;
   $("#cuenta-pendientes").textContent = total;
   $("#cuenta-padron").textContent = S.entidades.length;
   $("#pie-fuente").textContent = "Datos: " + (S.store ? S.store.etiqueta : "cargando…");
@@ -778,45 +854,46 @@ function renderAviso() {
 }
 
 function renderKpis(lista, p) {
-  const cursadas = lista.filter((e) => e.carta_estado === "cursada").length;
-  const visitadas = lista.filter((e) => e.estado === "visitada").length;
-  const realizadas = S.visitas.filter((v) => v.estado === "realizada").length;
+  const notificadas = lista.filter((e) => e.carta_estado === "cursada").length;
+  const cerradas = lista.filter((e) => e.estado === "cerrado").length;
+  const r1 = S.visitas.filter((v) => v.estado === "realizada" && (v.tipo || "primera") === "primera").length;
+  const r2 = S.visitas.filter((v) => v.estado === "realizada" && v.tipo === "segunda").length;
   const pos = S.visitas.filter((v) => v.resultado === "positivo").length;
   const neg = S.visitas.filter((v) => v.resultado === "negativo").length;
-  const avance = S.entidades.length ? Math.round((visitadas / S.entidades.length) * 100) : 0;
+  const avance = S.entidades.length ? Math.round((cerradas / S.entidades.length) * 100) : 0;
   const prox = p.proximas[0];
   const tiles = [
-    { rot: "Entidades del padrón", cifra: S.entidades.length, nota: cursadas + " con carta cursada", cls: "" },
-    { rot: "Cartas por cursar", cifra: p.cartas.length, nota: p.cartas.length ? "Trámite pendiente" : "Al día", cls: p.cartas.length ? "pend" : "" },
-    { rot: "Visitas programadas", cifra: p.proximas.length, nota: prox ? "Próxima: " + fCorta(prox.fecha) : "Ninguna en agenda", cls: "" },
-    { rot: "Visitas realizadas", cifra: realizadas, nota: visitadas + " de " + S.entidades.length + " entidades (" + avance + "%)", cls: "", barra: avance },
+    { rot: "Entidades del padrón", cifra: S.entidades.length, nota: notificadas + " con carta notificada", cls: "" },
+    { rot: "Cartas por notificar", cifra: p.cartas.length, nota: p.cartas.length ? "Trámite pendiente" : "Al día", cls: p.cartas.length ? "pend" : "" },
+    { rot: "Inspecciones en agenda", cifra: p.proximas.length, nota: prox ? "Próxima: " + fCorta(prox.fecha) : "Ninguna programada", cls: "" },
+    { rot: "Inspecciones realizadas", cifra: r1 + r2, nota: r1 + " primeras · " + r2 + " segundas", cls: "", barra: avance, pie: cerradas + " de " + S.entidades.length + " entidades concluidas" },
     { rot: "Resultado positivo", cifra: pos, nota: neg + " con resultado negativo · " + p.sinResultado.length + " sin registrar", cls: "bien" }
   ];
   $("#kpis").innerHTML = tiles.map((t) =>
     '<div class="kpi ' + t.cls + '"><span class="rotulo">' + t.rot + '</span><span class="cifra">' + t.cifra + "</span>"
     + '<span class="nota">' + esc(t.nota) + "</span>"
-    + (t.barra !== undefined ? '<span class="barra"><span style="width:' + t.barra + '%"></span></span>' : "") + "</div>"
+    + (t.barra !== undefined ? '<span class="barra"><span style="width:' + t.barra + '%"></span></span><span class="nota">' + esc(t.pie) + "</span>" : "") + "</div>"
   ).join("");
 }
 
-function filaEnt(e, acciones) {
+function filaEnt(e, acciones, extra) {
   return '<li class="item"><div class="cuerpo"><div class="nombre">' + esc(e.nombre) + "</div>"
     + '<div class="meta">' + (e.ubicacion ? "<span>" + esc(e.ubicacion) + "</span>" : "")
-    + (e.responsable ? "<span>" + esc(e.responsable) + "</span>" : "")
-    + (e.carta_numero ? "<span>" + esc(e.carta_numero) + "</span>" : "") + "</div></div>"
-    + '<div class="acciones">' + acciones + "</div></li>";
+    + (e.carta_numero ? "<span>" + esc(e.carta_numero) + "</span>" : "")
+    + (extra || "") + "</div></div>"
+    + '<div class="acciones">' + (acciones || "") + "</div></li>";
 }
 function filaVisita(v, acciones, urgente) {
   const d = aDate(v.fecha);
   const dif = dias(S.hoy, v.fecha);
   const cuando = dif === 0 ? "hoy" : dif === 1 ? "mañana" : dif > 0 ? "en " + dif + " días" : "hace " + Math.abs(dif) + " días";
   return '<li class="item"><div class="fecha"><b>' + d.getDate() + "</b>" + MES_CORTO[d.getMonth()] + "</div>"
-    + '<div class="cuerpo"><div class="nombre">' + esc(nombreDe(v.entidad_id)) + "</div>"
+    + '<div class="cuerpo"><div class="nombre"><span class="tipo">' + TIPO[v.tipo || "primera"] + " insp.</span>" + esc(nombreDe(v.entidad_id)) + "</div>"
     + '<div class="meta"><span' + (urgente ? ' style="color:var(--crit);font-weight:600"' : "") + ">" + cuando + "</span>"
     + (v.hora ? "<span>" + esc(v.hora) + "</span>" : "")
-    + (v.responsable ? "<span>" + esc(v.responsable) + "</span>" : "")
+    + "<span>" + quien(v.responsables) + "</span>"
     + (v.nota ? "<span>" + esc(v.nota) + "</span>" : "") + "</div></div>"
-    + '<div class="acciones">' + acciones + "</div></li>";
+    + '<div class="acciones">' + (acciones || "") + "</div></li>";
 }
 
 function renderPendientes(p) {
@@ -831,21 +908,31 @@ function renderPendientes(p) {
 
   let html = "";
   if (p.vencidas.length) {
-    html += bloque("Visitas vencidas sin registrar", "programadas antes de hoy",
+    html += bloque("Inspecciones vencidas sin registrar", "programadas antes de hoy",
       p.vencidas.map((v) => filaVisita(v, bV(v.id, "Positivo") + bV(v.id, "Negativo") + bV(v.id, "Editar"), true)), "", true);
   }
-  html += bloque("Cartas por cursar", "paso previo a la inspección",
-    p.cartas.map((e) => filaEnt(e, bE(e.id, "Marcar cursada", "primario") + bE(e.id, "Editar"))),
-    "Al día: todas las entidades tienen carta cursada.");
-  html += bloque("Visitas por programar", "con carta cursada y sin fecha",
-    p.porProgramar.map((e) => filaEnt(e, bE(e.id, "Programar", "primario") + bE(e.id, "Editar"))),
-    "Al día: ninguna entidad espera fecha de visita.");
-  html += bloque("Próximas visitas", "agenda vigente",
+  html += bloque("Cartas por notificar", "primera actividad del ciclo",
+    p.cartas.map((e) => filaEnt(e, bE(e.id, "Marcar notificada", "primario") + bE(e.id, "Editar"),
+      "<span>" + quien(e.carta_responsables) + "</span>")),
+    "Al día: todas las entidades tienen su carta notificada.");
+  html += bloque("1.ª inspección por programar", "con carta notificada y sin fecha",
+    p.prog1.map((e) => filaEnt(e, bE(e.id, "Programar 1.ª", "primario") + bE(e.id, "Editar"),
+      (e.carta_fecha ? "<span>carta del " + fCorta(e.carta_fecha) + "</span>" : "") + "<span>" + quien(e.carta_responsables) + "</span>")),
+    "Al día: ninguna entidad espera su primera inspección.");
+  html += bloque("Falta definir si requiere 2.ª inspección", "la 1.ª ya se realizó",
+    p.definir.map((e) => filaEnt(e, bV(e.p1.id, "Requiere 2.ª", "primario") + bV(e.p1.id, "No requiere") + bV(e.p1.id, "Editar"),
+      "<span>1.ª del " + fCorta(e.p1.fecha) + "</span><span>" + quien(e.p1.responsables) + "</span>")),
+    "Al día: todas las primeras inspecciones están definidas.");
+  html += bloque("2.ª inspección por programar", "requerida y sin fecha",
+    p.prog2.map((e) => filaEnt(e, bE(e.id, "Programar 2.ª", "primario") + bE(e.id, "Editar"),
+      "<span>1.ª del " + fCorta(e.p1.fecha) + "</span><span>" + quien(e.p1.responsables) + "</span>")),
+    "Al día: ninguna segunda inspección espera fecha.");
+  html += bloque("Próximas inspecciones", "agenda vigente",
     p.proximas.map((v) => filaVisita(v, bV(v.id, "Positivo") + bV(v.id, "Negativo") + bV(v.id, "Editar"))),
-    S.entidades.length ? "Sin visitas en agenda." : "Sin visitas en agenda.");
+    "Sin inspecciones en agenda.");
   html += bloque("Realizadas sin resultado", "falta consignar el resultado",
     p.sinResultado.map((v) => filaVisita(v, bV(v.id, "Positivo") + bV(v.id, "Negativo") + bV(v.id, "Editar"))),
-    "Al día: todas las visitas realizadas tienen resultado.");
+    "Al día: todas las inspecciones realizadas tienen resultado.");
   $("#vista-pendientes").innerHTML = html;
 }
 
@@ -882,10 +969,13 @@ function renderCalendario() {
       progMes += vs.filter((v) => v.estado === "programada").length;
       realMes += vs.filter((v) => v.estado === "realizada").length;
       const dow = new Date(a, m - 1, d).getDay();
-      const chips = vs.slice(0, 2).map((v) => '<span class="mini ' + claseVisita(v) + '" title="' + esc(nombreDe(v.entidad_id)) + (v.hora ? " · " + esc(v.hora) : "") + '">' + esc(nombreCorto(nombreDe(v.entidad_id))) + "</span>").join("");
+      const chips = vs.slice(0, 2).map((v) => '<span class="mini ' + claseVisita(v) + '" title="'
+        + TIPO[v.tipo || "primera"] + " inspección · " + esc(nombreDe(v.entidad_id))
+        + (listaResp(v.responsables).length ? " · " + esc(listaResp(v.responsables).join(", ")) : "")
+        + (v.hora ? " · " + esc(v.hora) : "") + '">' + TIPO[v.tipo || "primera"] + " " + esc(nombreCorto(nombreDe(v.entidad_id))) + "</span>").join("");
       celdas += '<button type="button" class="dia' + (dow === 0 || dow === 6 ? " finde" : "") + (iso === S.hoy ? " hoy" : "") + '"'
         + ' data-dia="' + iso + '" aria-pressed="' + (S.diaSel === iso) + '"'
-        + ' aria-label="' + fLarga(iso) + ", " + (vs.length ? vs.length + " visita(s)" : "sin visitas") + '">'
+        + ' aria-label="' + fLarga(iso) + ", " + (vs.length ? vs.length + " inspección(es)" : "sin inspecciones") + '">'
         + '<span class="n">' + d + "</span>"
         + (chips ? '<span class="chips-dia">' + chips + (vs.length > 2 ? '<span class="mas">+' + (vs.length - 2) + " más</span>" : "") + "</span>" : "")
         + "</button>";
@@ -902,56 +992,107 @@ function renderCalendario() {
 function renderDetalleDia() {
   const c = $("#detalle-dia");
   if (!S.diaSel) {
-    c.innerHTML = '<div class="aviso"><span>Selecciona un día del calendario para ver o programar sus visitas.</span>'
-      + (S.edicion ? '<button class="btn chico primario" id="btn-nueva-visita">+ Programar visita</button>' : "") + "</div>";
+    c.innerHTML = '<div class="aviso"><span>Selecciona un día del calendario para ver o programar sus inspecciones.</span>'
+      + (S.edicion ? '<button class="btn chico primario" id="btn-nueva-visita">+ Programar inspección</button>' : "") + "</div>";
   } else {
     const vs = S.visitas.filter((v) => v.fecha === S.diaSel).sort((a, b) => String(a.hora).localeCompare(String(b.hora)));
     const ed = S.edicion;
     const acc = (v) => ed ? '<button class="btn chico" data-vis="' + v.id + '" data-accion="Positivo">Positivo</button>'
       + '<button class="btn chico" data-vis="' + v.id + '" data-accion="Negativo">Negativo</button>'
       + '<button class="btn chico" data-vis="' + v.id + '" data-accion="Editar">Editar</button>' : "";
-    c.innerHTML = '<section class="bloque"><header><h2>' + fLarga(S.diaSel) + '</h2><span class="cuenta">' + vs.length + " visita(s)</span>"
+    c.innerHTML = '<section class="bloque"><header><h2>' + fLarga(S.diaSel) + '</h2><span class="cuenta">' + vs.length + " inspección(es)</span>"
       + (ed ? '<span class="glosa"><button class="btn chico primario" id="btn-nueva-visita">+ Programar en este día</button></span>' : "")
       + "</header>"
-      + (vs.length ? '<ul class="lista">' + vs.map((v) => '<li class="item"><div class="cuerpo"><div class="nombre">' + esc(nombreDe(v.entidad_id)) + "</div>"
+      + (vs.length ? '<ul class="lista">' + vs.map((v) => '<li class="item"><div class="cuerpo">'
+        + '<div class="nombre"><span class="tipo">' + TIPO[v.tipo || "primera"] + " insp.</span>" + esc(nombreDe(v.entidad_id)) + "</div>"
         + '<div class="meta">' + (v.hora ? "<span>" + esc(v.hora) + "</span>" : "")
-        + (v.responsable ? "<span>" + esc(v.responsable) + "</span>" : "")
+        + "<span>" + quien(v.responsables) + "</span>"
         + (v.nota ? "<span>" + esc(v.nota) + "</span>" : "") + "</div></div>"
         + '<div class="acciones">' + (v.estado === "programada" ? '<span class="chip info">Programada</span>' : chipResultado(v.resultado)) + acc(v) + "</div></li>").join("") + "</ul>"
-        : '<p class="vacio">Sin visitas registradas en este día.</p>') + "</section>";
+        : '<p class="vacio">Sin inspecciones registradas en este día.</p>') + "</section>";
   }
   const b = $("#btn-nueva-visita");
   if (b) b.onclick = () => abrirVisita(null, null, S.diaSel || "");
 }
 
+function renderResponsables(lista) {
+  const gente = personal();
+  const fila = (p) => {
+    const cartas = lista.filter((e) => e.carta_estado === "cursada" && listaResp(e.carta_responsables).includes(p)).length;
+    const mias = S.visitas.filter((v) => listaResp(v.responsables).includes(p));
+    const r1 = mias.filter((v) => v.estado === "realizada" && (v.tipo || "primera") === "primera").length;
+    const r2 = mias.filter((v) => v.estado === "realizada" && v.tipo === "segunda").length;
+    const agenda = mias.filter((v) => v.estado === "programada" && v.fecha >= S.hoy).length;
+    const venc = mias.filter((v) => v.estado === "programada" && v.fecha < S.hoy).length;
+    return "<tr><td class=\"ent\">" + esc(p) + "</td>"
+      + '<td class="fecha">' + cartas + "</td>"
+      + '<td class="fecha">' + r1 + "</td>"
+      + '<td class="fecha">' + r2 + "</td>"
+      + '<td class="fecha">' + agenda + "</td>"
+      + "<td>" + (venc ? '<span class="chip mal">' + venc + " vencida(s)</span>" : '<span class="nada">0</span>') + "</td></tr>";
+  };
+  const sinCarta = lista.filter((e) => e.carta_estado !== "cursada" && !listaResp(e.carta_responsables).length);
+  const sinInsp = S.visitas.filter((v) => !listaResp(v.responsables).length);
+  const sinAsignar = sinCarta.map((e) => '<li class="item"><div class="cuerpo"><div class="nombre">' + esc(e.nombre) + '</div><div class="meta"><span>Notificación de carta</span></div></div>'
+      + '<div class="acciones">' + (S.edicion ? '<button class="btn chico" data-ent="' + e.id + '" data-accion="Editar">Asignar</button>' : "") + "</div></li>")
+    .concat(sinInsp.map((v) => '<li class="item"><div class="cuerpo"><div class="nombre">' + esc(nombreDe(v.entidad_id)) + '</div><div class="meta"><span>'
+      + TIPO[v.tipo || "primera"] + " inspección · " + fCorta(v.fecha) + "</span></div></div>"
+      + '<div class="acciones">' + (S.edicion ? '<button class="btn chico" data-vis="' + v.id + '" data-accion="Editar">Asignar</button>' : "") + "</div></li>"));
+
+  $("#vista-responsables").innerHTML =
+    '<section class="bloque"><header><h2>Carga por persona</h2><span class="cuenta">' + gente.length + "</span>"
+    + '<span class="glosa">actividades a su cargo</span></header>'
+    + (gente.length
+      ? '<div class="tabla-scroll"><table><thead><tr><th>Persona</th><th>Cartas notificadas</th><th>1.ª inspecciones</th><th>2.ª inspecciones</th><th>En agenda</th><th>Vencidas</th></tr></thead><tbody>'
+        + gente.map(fila).join("") + "</tbody></table></div>"
+      : '<p class="vacio">Todavía no hay personal asignado a ninguna actividad.</p>')
+    + "</section>"
+    + (sinAsignar.length
+      ? '<section class="bloque urgente"><header><h2>Actividades sin responsable</h2><span class="cuenta">' + sinAsignar.length + "</span>"
+        + '<span class="glosa">falta designar a quién le corresponde</span></header><ul class="lista">' + sinAsignar.join("") + "</ul></section>"
+      : '<section class="bloque vacia"><header><h2>Actividades sin responsable</h2><span class="cuenta">0</span><span class="glosa">Todas las actividades tienen encargado.</span></header></section>');
+}
+
+function celdaInsp(hecha, programada) {
+  if (hecha) return '<div class="linea">' + fCorta(hecha.fecha) + " " + chipResultado(hecha.resultado) + "</div>" + quien(hecha.responsables);
+  if (programada) return '<div class="linea">' + fCorta(programada.fecha) + ' <span class="chip info">Programada</span></div>' + quien(programada.responsables);
+  return '<span class="chip neutro">Pendiente</span>';
+}
+
 function renderPadron(lista) {
   const f = S.filtros;
   const q = f.q.toLowerCase().trim();
+  const texto = (e) => ((e.nombre || "") + " " + (e.ubicacion || "") + " "
+    + listaResp(e.carta_responsables).join(" ") + " "
+    + e.vs.map((v) => listaResp(v.responsables).join(" ")).join(" ")).toLowerCase();
   const filtradas = lista.filter((e) => {
     if (f.estado && e.estado !== f.estado) return false;
     if (f.resultado === "sin" && e.resultado) return false;
     if (f.resultado && f.resultado !== "sin" && e.resultado !== f.resultado) return false;
-    if (q && !((e.nombre || "") + " " + (e.ubicacion || "") + " " + (e.responsable || "")).toLowerCase().includes(q)) return false;
+    if (q && !texto(e).includes(q)) return false;
     return true;
   });
   $("#tbody-padron").innerHTML = filtradas.length ? filtradas.map((e) =>
     "<tr>"
-    + '<td class="ent">' + esc(e.nombre) + (e.ubicacion || e.responsable ? "<small>" + esc([e.ubicacion, e.responsable].filter(Boolean).join(" · ")) + "</small>" : "") + "</td>"
+    + '<td class="ent">' + esc(e.nombre) + (e.ubicacion ? "<small>" + esc(e.ubicacion) + "</small>" : "") + "</td>"
     + "<td>" + (e.carta_estado === "cursada"
-      ? '<span class="chip ok">Cursada</span>' + (e.carta_fecha ? ' <span class="chip neutro" style="background:none;border:none;padding-left:0">' + fCorta(e.carta_fecha) + "</span>" : "")
-      : '<span class="chip pend">Por cursar</span>') + "</td>"
-    + '<td class="fecha">' + (e.prox ? fCorta(e.prox.fecha) + (e.prox.hora ? " " + esc(e.prox.hora) : "") : e.ultima ? fCorta(e.ultima.fecha) : "—") + "</td>"
-    + "<td>" + CHIP[e.estado] + "</td>"
-    + "<td>" + (e.ultima ? chipResultado(e.resultado) : '<span class="chip neutro">—</span>') + "</td>"
+        ? '<div class="linea"><span class="chip ok">Notificada</span>' + (e.carta_fecha ? '<span class="fecha">' + fCorta(e.carta_fecha) + "</span>" : "") + "</div>"
+        : '<div class="linea"><span class="chip pend">Por notificar</span></div>')
+      + quien(e.carta_responsables) + "</td>"
+    + "<td>" + celdaInsp(e.p1, e.p1prog) + "</td>"
+    + "<td>" + (e.p1 ? chipRequiere(e.requiere) : '<span class="nada">—</span>') + "</td>"
+    + "<td>" + (e.requiere === "si" ? celdaInsp(e.p2, e.p2prog) : '<span class="nada">—</span>') + "</td>"
+    + "<td>" + chipEstado(e.estado) + "</td>"
     + '<td class="acciones">' + (S.edicion
-      ? '<button class="btn chico" data-ent="' + e.id + '" data-accion="Programar">Programar</button> <button class="btn chico" data-ent="' + e.id + '" data-accion="Editar">Editar</button>'
+      ? '<button class="btn chico" data-ent="' + e.id + '" data-accion="' + (e.estado === "por_programar_2" ? "Programar 2.ª" : "Programar 1.ª") + '">Programar</button> <button class="btn chico" data-ent="' + e.id + '" data-accion="Editar">Editar</button>'
       : "") + "</td></tr>").join("")
-    : '<tr><td colspan="6" class="vacio">No hay entidades que coincidan con el filtro.</td></tr>';
+    : '<tr><td colspan="7" class="vacio">No hay entidades que coincidan con el filtro.</td></tr>';
 }
+
 </script>
 <script>
 /* ---------------------- interacción ---------------------- */
-function aviso(msg) {
+function toast(msg) {
   let t = $("#toast");
   if (!t) {
     t = document.createElement("div"); t.id = "toast";
@@ -962,10 +1103,47 @@ function aviso(msg) {
   clearTimeout(t._t); t._t = setTimeout(() => { t.hidden = true; }, 3800);
 }
 const exigeEdicion = () => {
-  if (!S.edicion) { aviso("Activa la edición para modificar los datos."); return false; }
-  if (S.ejemplo) { aviso("Estos son datos de ejemplo. Importa tu padrón o crea una entidad para empezar."); return false; }
+  if (!S.edicion) { toast("Activa la edición para modificar los datos."); return false; }
+  if (S.ejemplo) { toast("Estos son datos de ejemplo. Importa tu padrón o crea una entidad para empezar."); return false; }
   return true;
 };
+
+/* --- campo de responsables (varias personas por actividad) --- */
+function chipsRender(c) {
+  const entrada = c.querySelector("input");
+  c.querySelectorAll(".persona").forEach((n) => n.remove());
+  (c._val || []).forEach((p, i) => {
+    const s = document.createElement("span");
+    s.className = "persona";
+    s.textContent = p;
+    const x = document.createElement("button");
+    x.type = "button"; x.className = "quita"; x.textContent = "×";
+    x.setAttribute("aria-label", "Quitar a " + p);
+    x.onclick = () => { c._val.splice(i, 1); chipsRender(c); };
+    s.appendChild(x);
+    c.insertBefore(s, entrada);
+  });
+}
+function chipsAdd(c, texto) {
+  const v = String(texto || "").trim().replace(/[,;]+$/, "");
+  if (!v) return;
+  c._val = c._val || [];
+  if (!c._val.includes(v)) c._val.push(v);
+  c.querySelector("input").value = "";
+  chipsRender(c);
+}
+function chipsSet(c, arr) { c._val = listaResp(arr).slice(); c.querySelector("input").value = ""; chipsRender(c); }
+function chipsGet(c) { const p = c.querySelector("input").value.trim(); const v = (c._val || []).slice(); if (p && !v.includes(p)) v.push(p); return v; }
+function chipsInit(c) {
+  const i = c.querySelector("input");
+  i.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter" || ev.key === "," || ev.key === ";") { ev.preventDefault(); chipsAdd(c, i.value); }
+    else if (ev.key === "Backspace" && !i.value && (c._val || []).length) { c._val.pop(); chipsRender(c); }
+  });
+  i.addEventListener("blur", () => chipsAdd(c, i.value));
+  c.addEventListener("click", (ev) => { if (ev.target === c) i.focus(); });
+}
+["#e-resp", "#v-resp"].forEach((sel) => chipsInit($(sel)));
 
 /* pestañas */
 $$(".tab").forEach((t) => t.addEventListener("click", () => {
@@ -986,12 +1164,12 @@ $("#btn-edicion").addEventListener("click", async () => {
     const correo = prompt("Ingresa tu correo autorizado. Recibirás un enlace de acceso.");
     if (correo) {
       const { error } = await S.store.cliente.auth.signInWithOtp({ email: correo.trim(), options: { emailRedirectTo: location.href } });
-      aviso(error ? "No se pudo enviar el enlace: " + error.message : "Enlace enviado a " + correo.trim() + ". Ábrelo desde este dispositivo.");
+      toast(error ? "No se pudo enviar el enlace: " + error.message : "Enlace enviado a " + correo.trim() + ". Ábrelo desde este dispositivo.");
     }
     render(); return;
   }
   S.edicion = r === true;
-  if (!S.edicion) aviso("Tu acceso es de solo lectura. Pide al responsable que te habilite como editor.");
+  if (!S.edicion) toast("Tu acceso es de solo lectura. Pide al responsable que te habilite como editor.");
   render();
 });
 
@@ -1007,20 +1185,32 @@ document.addEventListener("click", async (ev) => {
     if (b.dataset.ent) {
       const e = S.entidades.find((x) => x.id === b.dataset.ent); if (!e) return;
       if (acc === "Editar") return abrirEntidad(e);
-      if (acc === "Programar") return abrirVisita(null, e.id, "");
-      if (acc === "Marcar cursada") { await S.store.guardar("entidades", { ...limpiarEnt(e), carta_estado: "cursada", carta_fecha: e.carta_fecha || S.hoy }); aviso("Carta registrada como cursada."); }
+      if (acc === "Programar 1.ª") return abrirVisita(null, e.id, "", "primera");
+      if (acc === "Programar 2.ª") return abrirVisita(null, e.id, "", "segunda");
+      if (acc === "Marcar notificada") {
+        await S.store.guardar("entidades", { ...limpiarEnt(e), carta_estado: "cursada", carta_fecha: e.carta_fecha || S.hoy });
+        toast("Carta registrada como notificada.");
+      }
     } else if (b.dataset.vis) {
       const v = S.visitas.find((x) => x.id === b.dataset.vis); if (!v) return;
       if (acc === "Editar") return abrirVisita(v);
       if (acc === "Positivo" || acc === "Negativo") {
         await S.store.guardar("visitas", { ...v, estado: "realizada", resultado: acc.toLowerCase() });
-        aviso("Resultado " + acc.toLowerCase() + " registrado.");
+        toast("Resultado " + acc.toLowerCase() + " registrado.");
+      }
+      if (acc === "Requiere 2.ª" || acc === "No requiere") {
+        await S.store.guardar("visitas", { ...v, requiere_segunda: acc === "Requiere 2.ª" ? "si" : "no" });
+        toast(acc === "Requiere 2.ª" ? "Se requiere una segunda inspección." : "No se requiere segunda inspección.");
       }
     }
-  } catch (err) { aviso("No se pudo guardar: " + (err.message || err.code || "error")); }
+  } catch (err) { toast("No se pudo guardar: " + (err.message || err.code || "error")); }
 });
 
-const limpiarEnt = (e) => ({ id: e.id, nombre: e.nombre, ubicacion: e.ubicacion || "", responsable: e.responsable || "", carta_estado: e.carta_estado || "pendiente", carta_fecha: e.carta_fecha || "", carta_numero: e.carta_numero || "", nota: e.nota || "" });
+const limpiarEnt = (e) => ({
+  id: e.id, nombre: e.nombre, ubicacion: e.ubicacion || "",
+  carta_estado: e.carta_estado || "pendiente", carta_fecha: e.carta_fecha || "",
+  carta_numero: e.carta_numero || "", carta_responsables: listaResp(e.carta_responsables), nota: e.nota || ""
+});
 
 /* diálogo entidad */
 let entEditando = null;
@@ -1029,10 +1219,10 @@ function abrirEntidad(e) {
   $("#dlg-entidad-titulo").textContent = e ? "Editar entidad" : "Nueva entidad";
   $("#e-nombre").value = e ? e.nombre || "" : "";
   $("#e-ubicacion").value = e ? e.ubicacion || "" : "";
-  $("#e-responsable").value = e ? e.responsable || "" : "";
   $("#e-carta-estado").value = e ? e.carta_estado || "pendiente" : "pendiente";
   $("#e-carta-fecha").value = e ? e.carta_fecha || "" : "";
   $("#e-carta-numero").value = e ? e.carta_numero || "" : "";
+  chipsSet($("#e-resp"), e ? e.carta_responsables : []);
   $("#e-nota").value = e ? e.nota || "" : "";
   $("#e-eliminar").hidden = !e;
   $("#dlg-entidad").showModal();
@@ -1043,68 +1233,81 @@ $("#form-entidad").addEventListener("submit", async (ev) => {
     id: entEditando ? entEditando.id : uid(),
     nombre: $("#e-nombre").value.trim(),
     ubicacion: $("#e-ubicacion").value.trim(),
-    responsable: $("#e-responsable").value.trim(),
     carta_estado: $("#e-carta-estado").value,
     carta_fecha: $("#e-carta-fecha").value,
     carta_numero: $("#e-carta-numero").value.trim(),
+    carta_responsables: chipsGet($("#e-resp")),
     nota: $("#e-nota").value.trim()
   };
   if (!obj.nombre) return;
-  try { await S.store.guardar("entidades", obj); $("#dlg-entidad").close(); aviso("Entidad guardada."); }
-  catch (err) { aviso("No se pudo guardar: " + (err.message || err.code)); }
+  try { await S.store.guardar("entidades", obj); $("#dlg-entidad").close(); toast("Entidad guardada."); }
+  catch (err) { toast("No se pudo guardar: " + (err.message || err.code)); }
 });
 $("#e-eliminar").addEventListener("click", async () => {
-  if (!entEditando || !confirm("¿Eliminar «" + entEditando.nombre + "» y sus visitas?")) return;
+  if (!entEditando || !confirm("¿Eliminar «" + entEditando.nombre + "» y sus inspecciones?")) return;
   for (const v of S.visitas.filter((v) => v.entidad_id === entEditando.id)) await S.store.borrar("visitas", v.id);
   await S.store.borrar("entidades", entEditando.id);
-  $("#dlg-entidad").close(); aviso("Entidad eliminada.");
+  $("#dlg-entidad").close(); toast("Entidad eliminada.");
 });
 
-/* diálogo visita */
+/* diálogo inspección */
 let visEditando = null;
-function abrirVisita(v, entidadId, fecha) {
+function sincronizarRequiere() {
+  $("#campo-requiere").style.visibility = $("#v-tipo").value === "primera" ? "visible" : "hidden";
+}
+$("#v-tipo").addEventListener("change", sincronizarRequiere);
+function abrirVisita(v, entidadId, fecha, tipo) {
   visEditando = v || null;
-  $("#dlg-visita-titulo").textContent = v ? "Editar visita" : "Programar visita";
-  $("#v-entidad").innerHTML = conEstado().map((e) => '<option value="' + e.id + '">' + esc(e.nombre) + "</option>").join("");
-  $("#v-entidad").value = v ? v.entidad_id : (entidadId || (S.entidades[0] || {}).id || "");
+  const lista = conEstado();
+  $("#dlg-visita-titulo").textContent = v ? "Editar inspección" : "Programar inspección";
+  $("#v-entidad").innerHTML = lista.map((e) => '<option value="' + e.id + '">' + esc(e.nombre) + "</option>").join("");
+  const entId = v ? v.entidad_id : (entidadId || (lista[0] || {}).id || "");
+  $("#v-entidad").value = entId;
+  $("#v-tipo").value = v ? (v.tipo || "primera") : (tipo || "primera");
+  $("#v-requiere").value = v ? (v.requiere_segunda || "") : "";
   $("#v-fecha").value = v ? v.fecha || "" : (fecha || S.hoy);
   $("#v-hora").value = v ? v.hora || "" : "";
   $("#v-estado").value = v ? v.estado || "programada" : "programada";
   $("#v-resultado").value = v ? v.resultado || "" : "";
-  $("#v-responsable").value = v ? v.responsable || "" : (S.entidades.find((e) => e.id === entidadId) || {}).responsable || "";
+  const ent = lista.find((e) => e.id === entId);
+  chipsSet($("#v-resp"), v ? v.responsables : (ent ? listaResp(ent.carta_responsables) : []));
   $("#v-nota").value = v ? v.nota || "" : "";
   $("#v-eliminar").hidden = !v;
+  sincronizarRequiere();
   $("#dlg-visita").showModal();
 }
 $("#form-visita").addEventListener("submit", async (ev) => {
   ev.preventDefault();
+  const tipo = $("#v-tipo").value;
   const obj = {
     id: visEditando ? visEditando.id : uid(),
     entidad_id: $("#v-entidad").value,
+    tipo,
     fecha: $("#v-fecha").value,
     hora: $("#v-hora").value,
     estado: $("#v-estado").value,
     resultado: $("#v-estado").value === "realizada" ? $("#v-resultado").value : "",
-    responsable: $("#v-responsable").value.trim(),
+    requiere_segunda: tipo === "primera" ? $("#v-requiere").value : "",
+    responsables: chipsGet($("#v-resp")),
     nota: $("#v-nota").value.trim()
   };
   if (!obj.entidad_id || !obj.fecha) return;
-  try { await S.store.guardar("visitas", obj); $("#dlg-visita").close(); aviso("Visita guardada."); }
-  catch (err) { aviso("No se pudo guardar: " + (err.message || err.code)); }
+  try { await S.store.guardar("visitas", obj); $("#dlg-visita").close(); toast("Inspección guardada."); }
+  catch (err) { toast("No se pudo guardar: " + (err.message || err.code)); }
 });
 $("#v-eliminar").addEventListener("click", async () => {
-  if (!visEditando || !confirm("¿Eliminar esta visita?")) return;
+  if (!visEditando || !confirm("¿Eliminar esta inspección?")) return;
   await S.store.borrar("visitas", visEditando.id);
-  $("#dlg-visita").close(); aviso("Visita eliminada.");
+  $("#dlg-visita").close(); toast("Inspección eliminada.");
 });
 
 /* importar / exportar */
-$("#btn-importar").addEventListener("click", () => { if (S.edicion) $("#dlg-importar").showModal(); else aviso("Activa la edición para importar el padrón."); });
-$("#btn-nueva-entidad").addEventListener("click", () => { if (S.edicion) abrirEntidad(null); else aviso("Activa la edición para agregar entidades."); });
+$("#btn-importar").addEventListener("click", () => { if (S.edicion) $("#dlg-importar").showModal(); else toast("Activa la edición para importar el padrón."); });
+$("#btn-nueva-entidad").addEventListener("click", () => { if (S.edicion) abrirEntidad(null); else toast("Activa la edición para agregar entidades."); });
 $("#form-importar").addEventListener("submit", async (ev) => {
   ev.preventDefault();
   const filas = parseTabla($("#i-texto").value);
-  if (!filas.length) return aviso("No se reconocieron filas. Revisa que la primera línea sea el encabezado.");
+  if (!filas.length) return toast("No se reconocieron filas. Revisa que la primera línea sea el encabezado.");
   try {
     if ($("#i-reemplazar").checked) {
       for (const v of S.reales.visitas) await S.store.borrar("visitas", v.id);
@@ -1113,21 +1316,29 @@ $("#form-importar").addEventListener("submit", async (ev) => {
     const ents = [], vis = [];
     filas.forEach((f) => {
       const id = uid();
-      ents.push({ id, nombre: f.nombre, ubicacion: f.ubicacion, responsable: f.responsable, carta_estado: f.carta_estado, carta_fecha: f.carta_fecha, carta_numero: f.carta_numero, nota: f.nota });
-      if (f._visita) vis.push({ id: uid(), entidad_id: id, fecha: f._visita, hora: "", estado: f._visita < S.hoy ? "realizada" : "programada", resultado: "", responsable: f.responsable, nota: "" });
+      ents.push({ id, nombre: f.nombre, ubicacion: f.ubicacion, carta_estado: f.carta_estado, carta_fecha: f.carta_fecha, carta_numero: f.carta_numero, carta_responsables: f.responsables, nota: f.nota });
+      if (f._visita) vis.push({ id: uid(), entidad_id: id, tipo: "primera", fecha: f._visita, hora: "", estado: f._visita < S.hoy ? "realizada" : "programada", resultado: "", requiere_segunda: "", responsables: f.responsables, nota: "" });
     });
     await S.store.guardarLote("entidades", ents);
     if (vis.length) await S.store.guardarLote("visitas", vis);
     $("#dlg-importar").close(); $("#i-texto").value = "";
-    aviso(ents.length + " entidades importadas" + (vis.length ? " y " + vis.length + " visitas" : "") + ".");
-  } catch (err) { aviso("No se pudo importar: " + (err.message || err.code)); }
+    toast(ents.length + " entidades importadas" + (vis.length ? " y " + vis.length + " inspecciones" : "") + ".");
+  } catch (err) { toast("No se pudo importar: " + (err.message || err.code)); }
 });
 $("#btn-exportar").addEventListener("click", async () => {
   const lista = conEstado();
-  const cab = ["entidad", "ubicacion", "responsable", "carta", "fecha_carta", "n_carta", "proxima_visita", "ultima_visita", "estado", "resultado", "observacion"];
+  const cab = ["entidad", "ubicacion", "carta", "fecha_carta", "n_carta", "notificacion_a_cargo",
+    "insp1_fecha", "insp1_estado", "insp1_resultado", "insp1_a_cargo", "requiere_segunda",
+    "insp2_fecha", "insp2_estado", "insp2_resultado", "insp2_a_cargo", "estado", "observacion"];
   const q = (s) => '"' + String(s ?? "").replace(/"/g, '""') + '"';
-  const csv = [cab.join(";")].concat(lista.map((e) => [e.nombre, e.ubicacion, e.responsable, e.carta_estado, e.carta_fecha, e.carta_numero,
-    e.prox ? e.prox.fecha : "", e.ultima ? e.ultima.fecha : "", e.estado, e.resultado, e.nota].map(q).join(";"))).join("\n");
+  const gente = (x) => x ? listaResp(x.responsables).join(" / ") : "";
+  const csv = [cab.join(";")].concat(lista.map((e) => {
+    const i1 = e.p1 || e.p1prog, i2 = e.p2 || e.p2prog;
+    return [e.nombre, e.ubicacion, e.carta_estado, e.carta_fecha, e.carta_numero, listaResp(e.carta_responsables).join(" / "),
+      i1 ? i1.fecha : "", i1 ? i1.estado : "", i1 ? i1.resultado : "", gente(i1), e.requiere,
+      i2 ? i2.fecha : "", i2 ? i2.estado : "", i2 ? i2.resultado : "", gente(i2),
+      ESTADOS[e.estado][0], e.nota].map(q).join(";");
+  })).join("\n");
   const nombre = "padron-visitas-" + S.hoy + ".csv";
   try {
     const dl = window.claude && window.claude.use ? await window.claude.use("downloads") : null;
@@ -1136,7 +1347,7 @@ $("#btn-exportar").addEventListener("click", async () => {
   try {
     const url = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a"); a.href = url; a.download = nombre; a.click(); URL.revokeObjectURL(url);
-  } catch (e) { navigator.clipboard.writeText(csv); aviso("CSV copiado al portapapeles."); }
+  } catch (e) { navigator.clipboard.writeText(csv); toast("CSV copiado al portapapeles."); }
 });
 
 /* filtros */
@@ -1158,10 +1369,10 @@ $$("[data-cerrar]").forEach((b) => b.addEventListener("click", () => b.closest("
   if (!store) { try { store = await storeClaudeDb(); } catch (e) { console.warn(e); } }
   if (!store) store = storeLocal();
   S.store = store;
-  if (store.edicionDirecta) S.edicion = false;
   store.escucha((col, filas) => aplicar(col, filas));
   render();
 })();
+
 </script>
 </body>
 </html>
