@@ -228,6 +228,7 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
       <button data-vista="resultados" aria-pressed="false">Resultados</button>
     </div>
     <button class="btn" id="btn-personas" aria-expanded="false">Personas</button>
+    <button class="btn" id="btn-excel" title="Descargar la agenda en Excel">Excel</button>
     <button class="btn" id="btn-edicion">Activar edición</button>
     <button class="btn primario" id="btn-nueva">+ Visita</button>
   </div>
@@ -703,6 +704,144 @@ $("#lienzo").addEventListener("click", (ev) => {
   const celda = ev.target.closest(".celda");
   if (celda) return abrir(null, celda.dataset.fecha, "09:00");
 });
+
+/* ---------------------- descarga en Excel ----------------------
+   Escribe un .xlsx válido sin librerías externas: el archivo es un ZIP
+   (almacenado, sin comprimir) con las partes XML que Excel espera.      */
+const TE = new TextEncoder();
+const xesc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" }[c]));
+
+let TABLA_CRC = null;
+function crc32(d) {
+  if (!TABLA_CRC) {
+    TABLA_CRC = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); TABLA_CRC[n] = c >>> 0; }
+  }
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < d.length; i++) c = TABLA_CRC[(c ^ d[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function zip(archivos) {
+  const partes = [], central = [];
+  let offset = 0, tamCentral = 0;
+  archivos.forEach((a) => {
+    const nombre = TE.encode(a.nombre), datos = TE.encode(a.texto), crc = crc32(datos);
+    const local = new Uint8Array(30 + nombre.length), dv = new DataView(local.buffer);
+    dv.setUint32(0, 0x04034b50, true); dv.setUint16(4, 20, true); dv.setUint16(6, 0x0800, true);
+    dv.setUint16(8, 0, true); dv.setUint16(10, 0, true); dv.setUint16(12, 0x21, true);
+    dv.setUint32(14, crc, true); dv.setUint32(18, datos.length, true); dv.setUint32(22, datos.length, true);
+    dv.setUint16(26, nombre.length, true); dv.setUint16(28, 0, true);
+    local.set(nombre, 30);
+    partes.push(local, datos);
+
+    const cen = new Uint8Array(46 + nombre.length), cv = new DataView(cen.buffer);
+    cv.setUint32(0, 0x02014b50, true); cv.setUint16(4, 20, true); cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true); cv.setUint16(10, 0, true); cv.setUint16(12, 0, true); cv.setUint16(14, 0x21, true);
+    cv.setUint32(16, crc, true); cv.setUint32(20, datos.length, true); cv.setUint32(24, datos.length, true);
+    cv.setUint16(28, nombre.length, true); cv.setUint32(42, offset, true);
+    cen.set(nombre, 46);
+    central.push(cen);
+    offset += local.length + datos.length;
+    tamCentral += cen.length;
+  });
+  const fin = new Uint8Array(22), fv = new DataView(fin.buffer);
+  fv.setUint32(0, 0x06054b50, true);
+  fv.setUint16(8, archivos.length, true); fv.setUint16(10, archivos.length, true);
+  fv.setUint32(12, tamCentral, true); fv.setUint32(16, offset, true);
+  const todo = partes.concat(central, [fin]);
+  const total = todo.reduce((n, x) => n + x.length, 0);
+  const salida = new Uint8Array(total);
+  let i = 0;
+  todo.forEach((x) => { salida.set(x, i); i += x.length; });
+  return salida;
+}
+
+/* Excel cuenta los días desde el 30/12/1899 */
+const serieExcel = (f) => { const [a, m, d] = f.split("-").map(Number); return Math.round((Date.UTC(a, m - 1, d) - Date.UTC(1899, 11, 30)) / 86400000); };
+const COL = ["A", "B", "C", "D", "E", "F"];
+
+function libroExcel(evs) {
+  const cab = ["Fecha", "Hora", "Entidad", "Personas", "Resultado", "Observaciones"];
+  const anchos = [12, 8, 46, 28, 24, 52];
+  const texto = (ref, v) => '<c r="' + ref + '" t="inlineStr"><is><t xml:space="preserve">' + xesc(v) + "</t></is></c>";
+  let filas = '<row r="1">' + cab.map((t, i) => '<c r="' + COL[i] + '1" t="inlineStr" s="1"><is><t>' + xesc(t) + "</t></is></c>").join("") + "</row>";
+  evs.forEach((v, n) => {
+    const r = n + 2;
+    filas += '<row r="' + r + '">'
+      + '<c r="A' + r + '" s="2"><v>' + serieExcel(v.fecha) + "</v></c>"
+      + texto("B" + r, hhmm(v.hora))
+      + texto("C" + r, v.entidad)
+      + texto("D" + r, listaP(v.personas).join(", "))
+      + texto("E" + r, ROTULO_RES[resDe(v)])
+      + texto("F" + r, v.observaciones || "")
+      + "</row>";
+  });
+  const hoja = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+    + '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+    + "<cols>" + anchos.map((w, i) => '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>').join("") + "</cols>"
+    + "<sheetData>" + filas + "</sheetData>"
+    + '<autoFilter ref="A1:F' + (evs.length + 1) + '"/></worksheet>';
+
+  const estilos = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+    + '<numFmts count="1"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/></numFmts>'
+    + '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>'
+    + '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>'
+    + '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
+    + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+    + '<cellXfs count="3">'
+    + '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
+    + '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>'
+    + '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'
+    + "</cellXfs>"
+    + '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+
+  const ns = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+  return zip([
+    { nombre: "[Content_Types].xml", texto: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+      + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+      + '<Default Extension="xml" ContentType="application/xml"/>'
+      + '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+      + '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+      + '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>' },
+    { nombre: "_rels/.rels", texto: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+      + '<Relationship Id="rId1" Type="' + ns + '/officeDocument" Target="xl/workbook.xml"/></Relationships>' },
+    { nombre: "xl/workbook.xml", texto: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="' + ns + '">'
+      + '<sheets><sheet name="Inspecciones" sheetId="1" r:id="rId1"/></sheets></workbook>' },
+    { nombre: "xl/_rels/workbook.xml.rels", texto: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+      + '<Relationship Id="rId1" Type="' + ns + '/worksheet" Target="worksheets/sheet1.xml"/>'
+      + '<Relationship Id="rId2" Type="' + ns + '/styles" Target="styles.xml"/></Relationships>' },
+    { nombre: "xl/styles.xml", texto: estilos },
+    { nombre: "xl/worksheets/sheet1.xml", texto: hoja }
+  ]);
+}
+
+async function descargarExcel() {
+  const evs = visibles().filter((v) => S.vista !== "resultados" || !S.filtroRes || resDe(v) === S.filtroRes);
+  if (!evs.length) return toast("No hay inspecciones que exportar con los filtros actuales.");
+  const bytes = libroExcel(evs);
+  const nombre = "inspecciones-" + hoyISO() + ".xlsx";
+  const filtrado = S.personas.length || (S.vista === "resultados" && S.filtroRes);
+  let dl = null;
+  try { dl = window.claude && window.claude.use ? await window.claude.use("downloads") : null; } catch (e) {}
+  if (dl) {
+    try { await dl.save({ filename: nombre, data: bytes }); }
+    catch (e) { if (e && e.code !== "declined") toast("No se pudo descargar: " + (e.message || e.code)); return; }
+  } else {
+    const url = URL.createObjectURL(new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+  toast(evs.length + " inspecciones exportadas" + (filtrado ? " (solo lo filtrado)" : "") + ".");
+}
+$("#btn-excel").addEventListener("click", descargarExcel);
 
 /* panel de personas y filtro de resultados */
 $("#btn-personas").addEventListener("click", () => {

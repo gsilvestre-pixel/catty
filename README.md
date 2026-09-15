@@ -17,6 +17,10 @@ Dos paneles completan la vista:
 - **Resultados** — la lista completa de inspecciones, filtrable por exitosas,
   se negó o sin registrar, con el conteo de cada grupo.
 
+El botón **Excel** descarga lo que esté a la vista en un `.xlsx` (fecha, hora,
+entidad, personas, resultado y observaciones). El archivo se arma en el propio
+navegador, sin librerías externas ni servicios de terceros.
+
 La aplicación es un solo archivo (`index.html`) sin proceso de compilación.
 
 ## Uso
@@ -31,7 +35,7 @@ La aplicación es un solo archivo (`index.html`) sin proceso de compilación.
 | Cambiar de vista | Botones **Mes / Semana / Día / Resultados**, o las teclas `m`, `s`, `d`. |
 | Navegar | **‹ ›** avanza mes, semana o día según la vista; **Hoy** vuelve a la fecha actual. |
 | Ir al detalle de un día | Clic en el número del día. |
-| Filtrar por persona | Selector **Todas las personas** en la barra superior. |
+| Descargar en Excel | Botón **Excel**: exporta lo que está a la vista (respeta los filtros) a un .xlsx con fechas reales, autofiltro y encabezado fijo. |
 
 Solo quien tenga permiso de edición ve los botones de creación: los demás
 consultan la agenda en modo lectura.
