@@ -225,11 +225,23 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
 .dia-cab b{font-size:13.5px; color:var(--ink); letter-spacing:0; text-transform:none}
 .dia-cab.hoy b{color:var(--hoy)}
 .ag-item{
-  display:flex; gap:12px; align-items:flex-start; width:100%; text-align:left; cursor:pointer;
   background:var(--surface); border:1px solid var(--line); border-radius:10px;
-  padding:12px 13px; margin-bottom:8px; border-left:4px solid var(--accent);
+  margin-bottom:8px; border-left:4px solid var(--accent); overflow:hidden;
 }
-.ag-item:hover{background:var(--surface-2)}
+.ag-abrir{
+  display:flex; gap:12px; align-items:flex-start; width:100%; text-align:left; cursor:pointer;
+  background:none; border:none; padding:12px 13px;
+}
+.ag-abrir:hover{background:var(--surface-2)}
+.ag-acciones{display:flex; gap:8px; padding:0 13px 11px}
+.ag-acciones button{
+  flex:1; border:1px solid var(--line); background:var(--surface); border-radius:8px;
+  padding:9px 10px; font-size:13.5px; font-weight:600; cursor:pointer;
+}
+.ag-acciones .si{color:var(--ok); border-color:color-mix(in srgb, var(--ok) 40%, var(--line))}
+.ag-acciones .si:hover{background:var(--ok-soft)}
+.ag-acciones .no{color:var(--mal); border-color:color-mix(in srgb, var(--mal) 40%, var(--line))}
+.ag-acciones .no:hover{background:var(--mal-soft)}
 .ag-item.ok{border-left-color:var(--ok)}
 .ag-item.mal{border-left-color:var(--mal)}
 .ag-hora{font-family:var(--mono); font-size:13.5px; font-weight:500; color:var(--ink-2); min-width:46px; padding-top:1px}
@@ -597,13 +609,21 @@ function renderAgenda(evs) {
         html += '<div class="dia-cab' + (dia === S.hoy ? " hoy" : "") + '">' + etiqueta(dia) + "</div>";
       }
       const gente = listaP(v.personas);
-      html += '<button type="button" class="ag-item ' + claseRes(v) + '" data-id="' + v.id + '">'
+      /* Si ya pasó la hora y falta el resultado, se marca desde la propia tarjeta. */
+      const marcar = S.edicion && !S.ejemplo && !v.resultado && v.fecha <= S.hoy;
+      html += '<div class="ag-item ' + claseRes(v) + '">'
+        + '<button type="button" class="ag-abrir" data-id="' + v.id + '">'
         + '<span class="ag-hora">' + hhmm(v.hora) + "</span>"
         + '<span class="ag-cuerpo"><b>' + esc(v.entidad) + "</b>"
         + (gente.length ? "<small>" + esc(gente.join(", ")) + "</small>" : '<small>Sin personas asignadas</small>')
         + (v.observaciones ? "<small>" + esc(v.observaciones) + "</small>" : "")
         + "</span>"
-        + (v.resultado ? chipRes(v) : "") + "</button>";
+        + (v.resultado ? chipRes(v) : "") + "</button>"
+        + (marcar
+          ? '<div class="ag-acciones"><button type="button" class="si" data-marcar="exitosa" data-visita="' + v.id + '">Exitosa</button>'
+            + '<button type="button" class="no" data-marcar="negada" data-visita="' + v.id + '">Se negó</button></div>'
+          : "")
+        + "</div>";
     });
   }
   const c = $("#lienzo");
@@ -828,6 +848,16 @@ $("#f-eliminar").addEventListener("click", async () => {
 $("#lienzo").addEventListener("click", (ev) => {
   const ir = ev.target.closest("[data-ir]");
   if (ir) { S.cursor = ir.dataset.ir; S.vista = "dia"; sincronizarVistas(); render(); return; }
+  const marca = ev.target.closest("[data-marcar]");
+  if (marca) {
+    const v = S.visitas.find((x) => x.id === marca.dataset.visita);
+    if (!v || !S.edicion) return;
+    marca.disabled = true;
+    S.store.guardar({ ...v, resultado: marca.dataset.marcar })
+      .then(() => toast(marca.dataset.marcar === "exitosa" ? "Registrada como exitosa." : "Registrado: se negó a la inspección."))
+      .catch((e) => { marca.disabled = false; toast("No se pudo guardar: " + (e.message || e.code)); });
+    return;
+  }
   if (ev.target.closest("#mas-pasadas")) { S.verPasadas = !S.verPasadas; return render(); }
   const res = ev.target.closest("[data-res]");
   if (res) { S.filtroRes = res.dataset.res; return render(); }
