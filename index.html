@@ -88,6 +88,13 @@
   --fab:linear-gradient(135deg,#FF8A00,#FF3D7F);
 }
 
+/* Tipo de infraestructura: colores propios, iguales en todas las paletas,
+   porque identifican la clase de obra y no el estado de la visita. */
+:root{
+  --edif:#5E3691; --edif-soft:#EFE6F7;   /* edificaciones · morado */
+  --sup:#256B29;  --sup-soft:#E4F2E5;    /* superficies   · verde  */
+}
+
 *{box-sizing:border-box}
 [hidden]{display:none !important}
 body{margin:0; background:var(--ground); color:var(--ink); font-family:var(--sans); font-size:15px; line-height:1.45; -webkit-font-smoothing:antialiased}
@@ -234,6 +241,11 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
 .chip.ok{background:var(--ok-soft); color:var(--ok); border-color:color-mix(in srgb, var(--ok) 30%, transparent)}
 .chip.mal{background:var(--mal-soft); color:var(--mal); border-color:color-mix(in srgb, var(--mal) 30%, transparent)}
 .chip.rep{background:var(--rep-soft); color:var(--rep); border-color:color-mix(in srgb, var(--rep) 30%, transparent)}
+.chip.edif{background:var(--edif-soft); color:var(--edif); border-color:color-mix(in srgb, var(--edif) 30%, transparent)}
+.chip.sup{background:var(--sup-soft); color:var(--sup); border-color:color-mix(in srgb, var(--sup) 30%, transparent)}
+.pt{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; vertical-align:0}
+.pt.edif{background:var(--edif)} .pt.sup{background:var(--sup)}
+.leyenda i.edif{background:var(--edif)} .leyenda i.sup{background:var(--sup)}
 
 .tablero{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); margin-top:14px; overflow:hidden}
 .tablero > header{padding:12px 14px; border-bottom:1px solid var(--line-soft)}
@@ -426,6 +438,8 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
     <span><i class="ok"></i> Inspección exitosa</span>
     <span><i class="mal"></i> Se negó a la inspección</span>
     <span><i class="rep"></i> Reprogramado</span>
+    <span><i class="edif"></i> Infraestructura de edificaciones</span>
+    <span><i class="sup"></i> Infraestructura de superficies</span>
   </div>
   <p class="pie"><span id="pie-fuente">—</span><span id="pie-cuenta"></span></p>
 </main>
@@ -467,6 +481,14 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
         <div class="chips-in" id="f-personas"><input type="text" id="f-personas-in" list="lista-personas" placeholder="Nombre + Enter"></div>
       </div>
       <p class="nota-rol" id="aviso-rol" hidden>Estás identificado como inspector de esta visita: puedes registrar su <b>estado</b> y sus <b>observaciones</b>. El resto lo administra quien programa la agenda.</p>
+      <div class="campo">
+        <label for="f-tipo">Tipo de infraestructura</label>
+        <select id="f-tipo">
+          <option value="">Sin especificar</option>
+          <option value="edificaciones">Infraestructura de edificaciones</option>
+          <option value="superficies">Infraestructura de superficies</option>
+        </select>
+      </div>
       <div class="campo">
         <label for="f-estado">Estado de la inspección</label>
         <select id="f-estado">
@@ -538,15 +560,15 @@ function cargarScript(src) {
 /* ---------------------- datos de ejemplo (no se guardan) ---------------------- */
 function ejemplo() {
   const l = lunes(hoyISO());
-  const v = (d, hora, entidad, personas, estado, obs) =>
-    ({ id: uid(), fecha: suma(l, d), hora, entidad, personas, estado, observaciones: obs || "" });
+  const v = (d, hora, entidad, personas, estado, obs, tipo) =>
+    ({ id: uid(), fecha: suma(l, d), hora, entidad, personas, estado, tipo: tipo || "", observaciones: obs || "" });
   return [
-    v(-3, "10:00", "Municipalidad Distrital de Pátapo", ["R. Vargas"], "negada", "No permitieron el ingreso."),
-    v(0, "09:00", "Municipalidad Distrital de Santiago", ["J. Quispe", "L. Ramos"], "exitosa", "Documentación completa."),
-    v(1, "10:30", "UGEL 06 Ate", ["J. Quispe"], "", ""),
-    v(2, "09:00", "Hospital Regional de Ica", ["M. Flores"], "", "Llevar copia del expediente."),
-    v(2, "15:00", "EPS Tacna S.A.", ["R. Vargas", "M. Flores"], "", ""),
-    v(4, "11:00", "Municipalidad Provincial de Huaura", ["R. Vargas"], "", "Segunda visita de verificación.")
+    v(-3, "10:00", "Municipalidad Distrital de Pátapo", ["R. Vargas"], "negada", "No permitieron el ingreso.", "superficies"),
+    v(0, "09:00", "Municipalidad Distrital de Santiago", ["J. Quispe", "L. Ramos"], "exitosa", "Documentación completa.", "edificaciones"),
+    v(1, "10:30", "UGEL 06 Ate", ["J. Quispe"], "", "", "edificaciones"),
+    v(2, "09:00", "Hospital Regional de Ica", ["M. Flores"], "", "Llevar copia del expediente.", "edificaciones"),
+    v(2, "15:00", "EPS Tacna S.A.", ["R. Vargas", "M. Flores"], "", "", "superficies"),
+    v(4, "11:00", "Municipalidad Provincial de Huaura", ["R. Vargas"], "", "Segunda visita de verificación.", "superficies")
   ];
 }
 
@@ -573,8 +595,8 @@ async function storeSupabase(cfg) {
   await cargarScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js");
   const sb = window.supabase.createClient(cfg.url, cfg.anonKey);
   let alCambiar = null;
-  const deFila = (r) => ({ ...r, hora: hhmm(r.hora), personas: listaP(r.personas), estado: r.estado || "", observaciones: r.observaciones || "" });
-  const aFila = (o) => ({ ...o, estado: o.estado || null });
+  const deFila = (r) => ({ ...r, hora: hhmm(r.hora), personas: listaP(r.personas), tipo: r.tipo || "", estado: r.estado || "", observaciones: r.observaciones || "" });
+  const aFila = (o) => ({ ...o, tipo: o.tipo || null, estado: o.estado || null });
   const ids = new Set();
   const leer = async () => {
     const { data, error } = await sb.from("visitas").select("*");
@@ -665,6 +687,13 @@ const EST = {
   negada:       { rot: "Se negó a la inspección", cls: "mal" },
   reprogramado: { rot: "Reprogramado", cls: "rep" }
 };
+const TIPOS = {
+  edificaciones: { rot: "Edificaciones", largo: "Infraestructura de edificaciones", cls: "edif" },
+  superficies:   { rot: "Superficies",   largo: "Infraestructura de superficies",   cls: "sup" }
+};
+const tipoDe = (v) => TIPOS[v.tipo] ? v.tipo : "";
+const chipTipo = (v) => tipoDe(v) ? '<span class="chip ' + TIPOS[v.tipo].cls + '">' + TIPOS[v.tipo].rot + "</span>" : "";
+const puntoTipo = (v) => tipoDe(v) ? '<i class="pt ' + TIPOS[v.tipo].cls + '"></i>' : "";
 const resDe = (v) => (v.estado && EST[v.estado] && v.estado !== "pendiente") ? v.estado : "pendiente";
 const claseRes = (v) => EST[resDe(v)].cls;
 const ROTULO_RES = { pendiente: EST.pendiente.rot, exitosa: EST.exitosa.rot, negada: EST.negada.rot, reprogramado: EST.reprogramado.rot };
@@ -746,6 +775,7 @@ function renderAgenda(evs) {
         + '<button type="button" class="ag-abrir" data-id="' + v.id + '">'
         + '<span class="ag-hora">' + hhmm(v.hora) + "</span>"
         + '<span class="ag-cuerpo"><b>' + esc(v.entidad) + "</b>"
+        + (tipoDe(v) ? '<small style="margin-top:4px">' + chipTipo(v) + "</small>" : "")
         + (gente.length ? "<small>" + esc(gente.join(", ")) + "</small>" : '<small>Sin personas asignadas</small>')
         + (v.observaciones ? "<small>" + esc(v.observaciones) + "</small>" : "")
         + "</span>"
@@ -775,7 +805,7 @@ function renderResultados(evs) {
       + '<span class="f">' + d.getDate() + " " + MES[d.getMonth()].slice(0, 3) + " " + d.getFullYear() + " · " + hhmm(v.hora) + "</span>"
       + '<span class="ent">' + esc(v.entidad) + "</span>"
       + '<span class="quien">' + (listaP(v.personas).join(", ") || "sin asignar") + "</span>"
-      + '<span class="der">' + chipRes(v) + "</span></button>";
+      + '<span class="der">' + chipTipo(v) + chipRes(v) + "</span></button>";
   }).join("");
   const c = $("#lienzo");
   c.className = "tablero";
@@ -804,8 +834,10 @@ function renderAviso() {
   } else c.innerHTML = "";
 }
 
-const chipEv = (v) => '<button class="ev ' + claseRes(v) + '" data-id="' + v.id + '" title="' + ROTULO_RES[resDe(v)] + " · " + esc(v.entidad)
-  + (listaP(v.personas).length ? " · " + esc(listaP(v.personas).join(", ")) : "") + '"><b>' + hhmm(v.hora) + "</b>" + esc(v.entidad) + "</button>";
+const chipEv = (v) => '<button class="ev ' + claseRes(v) + '" data-id="' + v.id + '" title="'
+  + (tipoDe(v) ? TIPOS[v.tipo].largo + " · " : "") + ROTULO_RES[resDe(v)] + " · " + esc(v.entidad)
+  + (listaP(v.personas).length ? " · " + esc(listaP(v.personas).join(", ")) : "") + '">'
+  + puntoTipo(v) + "<b>" + hhmm(v.hora) + "</b>" + esc(v.entidad) + "</button>";
 
 function renderMes(evs) {
   const c = aDate(S.cursor), a = c.getFullYear(), m = c.getMonth();
@@ -863,8 +895,8 @@ function renderTiempo(evs, dias) {
         const solo = dias.length === 1;
         bloques += '<button class="bloque ' + claseRes(v) + '" data-id="' + v.id + '" title="' + hhmm(v.hora) + " · " + esc(v.entidad) + (gente.length ? " · " + esc(gente.join(", ")) : "") + " · " + ROTULO_RES[resDe(v)] + '" style="top:' + top + "px;height:" + (FILA - 3) + "px;left:" + izq + ";width:" + ancho + '">'
           + (solo
-            ? '<div class="e"><span class="h">' + hhmm(v.hora) + "</span> " + esc(v.entidad) + "</div>"
-            : '<div class="h">' + hhmm(v.hora) + '</div><div class="e">' + esc(v.entidad) + "</div>")
+            ? '<div class="e">' + puntoTipo(v) + '<span class="h">' + hhmm(v.hora) + "</span> " + esc(v.entidad) + "</div>"
+            : '<div class="h">' + puntoTipo(v) + hhmm(v.hora) + '</div><div class="e">' + esc(v.entidad) + "</div>")
           + (gente.length ? '<div class="p">' + esc(gente.join(", ")) + "</div>" : "")
           + (solo && v.observaciones ? '<div class="p">' + esc(v.observaciones) + "</div>" : "")
           + "</button>";
@@ -941,6 +973,7 @@ function abrir(v, fecha, hora) {
   $("#f-entidad").value = v ? v.entidad || "" : "";
   $("#f-fecha").value = v ? v.fecha || "" : (fecha || S.cursor);
   $("#f-hora").value = v ? hhmm(v.hora) : (hora || "09:00");
+  $("#f-tipo").value = v ? v.tipo || "" : "";
   $("#f-estado").value = v ? v.estado || "" : "";
   $("#f-obs").value = v ? v.observaciones || "" : "";
   cajaP._val = v ? listaP(v.personas).slice() : [];
@@ -949,6 +982,7 @@ function abrir(v, fecha, hora) {
   ["#f-entidad", "#f-fecha", "#f-hora"].forEach((s) => { $(s).readOnly = !puedeTodo(); });
   $("#f-obs").readOnly = ro;
   $("#f-estado").disabled = ro;
+  $("#f-tipo").disabled = !puedeTodo();   /* la clase de obra la define quien programa */
   cajaP.querySelector("input").hidden = !puedeTodo();
   $("#f-eliminar").hidden = !puedeTodo() || !v;
   $("#form").querySelector('button[type="submit"]').hidden = ro;
@@ -970,6 +1004,7 @@ $("#form").addEventListener("submit", async (ev) => {
         fecha: $("#f-fecha").value,
         hora: $("#f-hora").value,
         personas: chipsGet(),
+        tipo: $("#f-tipo").value,
         estado: $("#f-estado").value,
         observaciones: $("#f-obs").value.trim()
       };
@@ -1064,11 +1099,11 @@ function zip(archivos) {
 
 /* Excel cuenta los días desde el 30/12/1899 */
 const serieExcel = (f) => { const [a, m, d] = f.split("-").map(Number); return Math.round((Date.UTC(a, m - 1, d) - Date.UTC(1899, 11, 30)) / 86400000); };
-const COL = ["A", "B", "C", "D", "E", "F"];
+const COL = ["A", "B", "C", "D", "E", "F", "G"];
 
 function libroExcel(evs) {
-  const cab = ["Fecha", "Hora", "Entidad", "Personas", "Estado", "Observaciones"];
-  const anchos = [12, 8, 46, 28, 24, 52];
+  const cab = ["Fecha", "Hora", "Entidad", "Infraestructura", "Personas", "Estado", "Observaciones"];
+  const anchos = [12, 8, 42, 30, 26, 24, 48];
   const texto = (ref, v) => '<c r="' + ref + '" t="inlineStr"><is><t xml:space="preserve">' + xesc(v) + "</t></is></c>";
   let filas = '<row r="1">' + cab.map((t, i) => '<c r="' + COL[i] + '1" t="inlineStr" s="1"><is><t>' + xesc(t) + "</t></is></c>").join("") + "</row>";
   evs.forEach((v, n) => {
@@ -1077,9 +1112,10 @@ function libroExcel(evs) {
       + '<c r="A' + r + '" s="2"><v>' + serieExcel(v.fecha) + "</v></c>"
       + texto("B" + r, hhmm(v.hora))
       + texto("C" + r, v.entidad)
-      + texto("D" + r, listaP(v.personas).join(", "))
-      + texto("E" + r, ROTULO_RES[resDe(v)])
-      + texto("F" + r, v.observaciones || "")
+      + texto("D" + r, tipoDe(v) ? TIPOS[v.tipo].largo : "")
+      + texto("E" + r, listaP(v.personas).join(", "))
+      + texto("F" + r, ROTULO_RES[resDe(v)])
+      + texto("G" + r, v.observaciones || "")
       + "</row>";
   });
   const hoja = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
@@ -1087,7 +1123,7 @@ function libroExcel(evs) {
     + '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
     + "<cols>" + anchos.map((w, i) => '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>').join("") + "</cols>"
     + "<sheetData>" + filas + "</sheetData>"
-    + '<autoFilter ref="A1:F' + (evs.length + 1) + '"/></worksheet>';
+    + '<autoFilter ref="A1:G' + (evs.length + 1) + '"/></worksheet>';
 
   const estilos = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
     + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'

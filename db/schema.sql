@@ -70,6 +70,8 @@ create table if not exists public.visitas (
   entidad        text not null,
   fecha          date not null,
   hora           time not null,
+  -- clase de obra: 'edificaciones' (morado) o 'superficies' (verde)
+  tipo           text check (tipo in ('edificaciones', 'superficies')),
   -- una o más personas por visita
   personas       text[] not null default '{}',
   -- nulo mientras la visita solo está programada
@@ -81,6 +83,7 @@ create table if not exists public.visitas (
 
 create index if not exists visitas_fecha_idx    on public.visitas (fecha);
 create index if not exists visitas_estado_idx   on public.visitas (estado);
+create index if not exists visitas_tipo_idx     on public.visitas (tipo);
 create index if not exists visitas_personas_idx on public.visitas using gin (personas);
 
 create or replace function public.tocar_actualizado() returns trigger
@@ -107,6 +110,7 @@ begin
   if new.entidad  is distinct from old.entidad
   or new.fecha    is distinct from old.fecha
   or new.hora     is distinct from old.hora
+  or new.tipo     is distinct from old.tipo
   or new.personas is distinct from old.personas then
     raise exception 'Solo puedes cambiar el estado y las observaciones de tus visitas';
   end if;

@@ -3,8 +3,12 @@
 Calendario para programar las visitas de inspección, con vistas de **mes,
 semana y día**. Cada visita registra:
 
-**entidad · fecha · hora · personas que harán la inspección · estado ·
-observaciones**
+**entidad · fecha · hora · tipo de infraestructura · personas que harán la
+inspección · estado · observaciones**
+
+El tipo distingue **infraestructura de edificaciones** (morado) de
+**infraestructura de superficies** (verde), y se ve como distintivo en la
+agenda y como punto de color en el calendario.
 
 El estado tiene cuatro valores: **programada** (aún sin registrar),
 **inspección exitosa**, **se negó a la inspección** y **reprogramado**, y tiñe
