@@ -1,12 +1,21 @@
 # Agenda de inspecciones
 
 Calendario para programar las visitas de inspección, con vistas de **mes,
-semana y día**. Cada visita registra únicamente:
+semana y día**. Cada visita registra:
 
-**entidad · fecha · hora · personas que harán la inspección · observaciones**
+**entidad · fecha · hora · personas que harán la inspección · resultado ·
+observaciones**
 
-Y se puede **filtrar por persona** desde la barra superior, en cualquiera de las
-tres vistas.
+El resultado tiene tres estados: *sin registrar* (solo programada),
+**inspección exitosa** y **se negó a la inspección**, y tiñe la visita en el
+calendario (azul, verde y rojo).
+
+Dos paneles completan la vista:
+
+- **Personas** — se eligen una o varias y el calendario muestra solo sus
+  inspecciones, en las cuatro vistas.
+- **Resultados** — la lista completa de inspecciones, filtrable por exitosas,
+  se negó o sin registrar, con el conteo de cada grupo.
 
 La aplicación es un solo archivo (`index.html`) sin proceso de compilación.
 
@@ -16,7 +25,10 @@ La aplicación es un solo archivo (`index.html`) sin proceso de compilación.
 |---|---|
 | Programar una visita | **+ Visita**, o clic en un día (vista mes) o en una franja horaria (vistas semana y día). |
 | Ver o editar una visita | Clic sobre ella. En modo lectura se abre solo para consultar. |
-| Cambiar de vista | Botones **Mes / Semana / Día**, o las teclas `m`, `s`, `d`. |
+| Registrar el resultado | Abrir la visita y elegir en **Resultado de la inspección**. |
+| Ver el calendario de una persona | Botón **Personas** y marcar uno o varios nombres. |
+| Revisar exitosas o negadas | Vista **Resultados** y sus filtros. |
+| Cambiar de vista | Botones **Mes / Semana / Día / Resultados**, o las teclas `m`, `s`, `d`. |
 | Navegar | **‹ ›** avanza mes, semana o día según la vista; **Hoy** vuelve a la fecha actual. |
 | Ir al detalle de un día | Clic en el número del día. |
 | Filtrar por persona | Selector **Todas las personas** en la barra superior. |

@@ -44,6 +44,8 @@ create table if not exists public.visitas (
   hora           time not null,
   -- una o más personas por visita
   personas       text[] not null default '{}',
+  -- resultado: nulo mientras la inspección solo está programada
+  resultado      text check (resultado in ('exitosa', 'negada')),
   observaciones  text not null default '',
   creado_en      timestamptz not null default now(),
   actualizado_en timestamptz not null default now()
@@ -51,6 +53,7 @@ create table if not exists public.visitas (
 
 create index if not exists visitas_fecha_idx    on public.visitas (fecha);
 create index if not exists visitas_personas_idx on public.visitas using gin (personas);
+create index if not exists visitas_resultado_idx on public.visitas (resultado);
 
 create or replace function public.tocar_actualizado() returns trigger
   language plpgsql as $$

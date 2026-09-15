@@ -23,6 +23,8 @@
   --ink:#131B20; --ink-2:#4A5860; --ink-3:#71828B;
   --accent:#16506B; --accent-ink:#0E3B50; --accent-soft:#E0EBF1;
   --hoy:#B4551F; --hoy-soft:#FBEADF;
+  --ok:#1C7A52; --ok-soft:#DEF0E6;
+  --mal:#A5382C; --mal-soft:#F8E4E0;
   --shadow:0 1px 2px rgba(19,27,32,.06), 0 8px 24px rgba(19,27,32,.07);
   --radius:10px; --fila:52px;
   --mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
@@ -30,6 +32,7 @@
   --display:"Archivo", "Source Sans 3", system-ui, sans-serif;
 }
 *{box-sizing:border-box}
+[hidden]{display:none !important}
 body{margin:0; background:var(--ground); color:var(--ink); font-family:var(--sans); font-size:15px; line-height:1.45; -webkit-font-smoothing:antialiased}
 h1,h2{font-family:var(--display); margin:0; letter-spacing:-.01em; text-wrap:balance}
 button, input, select, textarea{font:inherit; color:inherit}
@@ -55,8 +58,6 @@ button, input, select, textarea{font:inherit; color:inherit}
 select, input[type="text"], input[type="date"], input[type="time"], textarea{
   background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:7px 10px; font-size:14px;
 }
-#filtro-persona{max-width:210px; font-weight:600}
-#filtro-persona.activo{border-color:var(--accent); background:var(--accent-soft); color:var(--accent-ink)}
 .btn.activo{color:var(--accent-ink); background:var(--accent-soft); border-color:var(--accent)}
 
 main{padding-bottom:56px}
@@ -87,6 +88,8 @@ main{padding-bottom:56px}
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 .ev:hover{filter:brightness(.97)}
+.ev.ok{background:var(--ok-soft); color:var(--ok); border-left-color:var(--ok)}
+.ev.mal{background:var(--mal-soft); color:var(--mal); border-left-color:var(--mal)}
 .ev b{font-family:var(--mono); font-weight:500; font-size:10.5px; margin-right:4px}
 .mas{font-size:10.5px; color:var(--ink-3); font-family:var(--mono); padding-left:4px; text-align:left; background:none; border:none; cursor:pointer}
 
@@ -113,10 +116,12 @@ main{padding-bottom:56px}
   border-left:3px solid var(--accent); color:var(--accent-ink); overflow:hidden; text-align:left;
 }
 .bloque:hover{filter:brightness(.97)}
+.bloque.ok{background:var(--ok-soft); color:var(--ok); border-color:color-mix(in srgb, var(--ok) 35%, transparent); border-left-color:var(--ok)}
+.bloque.mal{background:var(--mal-soft); color:var(--mal); border-color:color-mix(in srgb, var(--mal) 35%, transparent); border-left-color:var(--mal)}
 .bloque .h{font-family:var(--mono); font-size:10.5px; font-weight:500; opacity:.85}
 .bloque .e{font-size:12.5px; font-weight:600; line-height:1.25; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .dia-detalle .bloque .e{white-space:normal}
-.bloque .p{font-size:11px; color:var(--ink-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.bloque .p{font-size:11px; opacity:.85; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .ahora{position:absolute; left:0; right:0; height:2px; background:var(--hoy); z-index:3; pointer-events:none}
 .ahora::before{content:""; position:absolute; left:-4px; top:-3px; width:8px; height:8px; border-radius:50%; background:var(--hoy)}
 
@@ -147,6 +152,37 @@ dialog footer .izq{margin-right:auto}
 .campo label{font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-3); font-weight:600}
 .fila{display:grid; grid-template-columns:1fr 1fr; gap:12px}
 textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
+.leyenda{display:flex; gap:16px; flex-wrap:wrap; font-size:12.5px; color:var(--ink-2); padding:10px 2px 0}
+.leyenda span{display:inline-flex; align-items:center; gap:6px}
+.leyenda i{width:10px; height:10px; border-radius:3px; display:inline-block}
+.leyenda i.prog{background:var(--accent)} .leyenda i.ok{background:var(--ok)} .leyenda i.mal{background:var(--mal)}
+
+.panel{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:12px 14px; margin-top:14px}
+.panel h2{font-size:12px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-3); font-weight:600; margin-bottom:9px}
+.panel .ayuda{font-size:12.5px; color:var(--ink-3); margin:9px 0 0}
+.toggles{display:flex; flex-wrap:wrap; gap:7px}
+.tog{border:1px solid var(--line); background:var(--surface); border-radius:99px; padding:6px 13px; font-size:13.5px; font-weight:600; color:var(--ink-2); cursor:pointer}
+.tog:hover{border-color:var(--ink-3)}
+.tog[aria-pressed="true"]{background:var(--accent); border-color:var(--accent); color:#fff}
+.tog[aria-pressed="true"].ok{background:var(--ok); border-color:var(--ok)}
+.tog[aria-pressed="true"].mal{background:var(--mal); border-color:var(--mal)}
+.tog .n{font-family:var(--mono); font-size:11.5px; opacity:.75; margin-left:5px}
+
+.chip{display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600; padding:3px 9px; border-radius:99px; border:1px solid transparent; white-space:nowrap}
+.chip::before{content:""; width:6px; height:6px; border-radius:50%; background:currentColor}
+.chip.prog{background:var(--accent-soft); color:var(--accent-ink); border-color:color-mix(in srgb, var(--accent) 30%, transparent)}
+.chip.ok{background:var(--ok-soft); color:var(--ok); border-color:color-mix(in srgb, var(--ok) 30%, transparent)}
+.chip.mal{background:var(--mal-soft); color:var(--mal); border-color:color-mix(in srgb, var(--mal) 30%, transparent)}
+
+.tablero{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); margin-top:14px; overflow:hidden}
+.tablero > header{padding:12px 14px; border-bottom:1px solid var(--line-soft)}
+.fila-r{display:flex; gap:12px; align-items:center; padding:11px 14px; border-top:1px solid var(--line-soft); flex-wrap:wrap; width:100%; background:none; border-left:none; border-right:none; border-bottom:none; text-align:left; cursor:pointer}
+.fila-r:hover{background:var(--surface-2)}
+.fila-r .f{font-family:var(--mono); font-size:12.5px; color:var(--ink-2); min-width:104px; font-variant-numeric:tabular-nums}
+.fila-r .ent{font-weight:600; font-size:14.5px; flex:1; min-width:170px}
+.fila-r .quien{font-size:12.5px; color:var(--ink-3)}
+.fila-r .der{margin-left:auto; display:flex; gap:8px; align-items:center}
+.sin-filas{padding:22px 14px; color:var(--ink-3); font-size:13.5px; text-align:center}
 .pie{padding:18px 0 0; font-size:12.5px; color:var(--ink-3); display:flex; gap:14px; flex-wrap:wrap}
 
 @media (max-width:760px){
@@ -156,7 +192,6 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
   .marca h1{font-size:17px}
   .btn{padding:9px 13px}
   .flechas .btn{width:40px}
-  #filtro-persona{flex:1 1 140px; max-width:none}
   #btn-edicion, #btn-nueva{flex:1 1 auto}
   .mes{grid-auto-rows:minmax(74px,1fr)}
   .celda{padding:3px}
@@ -190,16 +225,27 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
       <button data-vista="mes" aria-pressed="true">Mes</button>
       <button data-vista="semana" aria-pressed="false">Semana</button>
       <button data-vista="dia" aria-pressed="false">Día</button>
+      <button data-vista="resultados" aria-pressed="false">Resultados</button>
     </div>
-    <select id="filtro-persona" aria-label="Filtrar por persona"><option value="">Todas las personas</option></select>
+    <button class="btn" id="btn-personas" aria-expanded="false">Personas</button>
     <button class="btn" id="btn-edicion">Activar edición</button>
     <button class="btn primario" id="btn-nueva">+ Visita</button>
   </div>
 </header>
 
 <main class="wrap">
+  <section class="panel" id="panel-personas" hidden aria-label="Filtrar por persona">
+    <h2>Ver el calendario de</h2>
+    <div class="toggles" id="toggles-personas"></div>
+    <p class="ayuda">Elige una o varias personas y el calendario mostrará solo sus inspecciones. El filtro se mantiene en las cuatro vistas.</p>
+  </section>
   <div id="aviso"></div>
   <section class="lienzo" id="lienzo"></section>
+  <div class="leyenda" id="leyenda">
+    <span><i class="prog"></i> Programada (sin resultado)</span>
+    <span><i class="ok"></i> Inspección exitosa</span>
+    <span><i class="mal"></i> Se negó a la inspección</span>
+  </div>
   <p class="pie"><span id="pie-fuente">—</span><span id="pie-cuenta"></span></p>
 </main>
 
@@ -227,6 +273,14 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
       <div class="campo">
         <label for="f-personas-in">Personas que harán la inspección</label>
         <div class="chips-in" id="f-personas"><input type="text" id="f-personas-in" list="lista-personas" placeholder="Nombre + Enter"></div>
+      </div>
+      <div class="campo">
+        <label for="f-resultado">Resultado de la inspección</label>
+        <select id="f-resultado">
+          <option value="">Sin registrar (programada)</option>
+          <option value="exitosa">Inspección exitosa</option>
+          <option value="negada">Se negó a la inspección</option>
+        </select>
       </div>
       <div class="campo">
         <label for="f-obs">Observaciones</label>
@@ -284,14 +338,15 @@ function cargarScript(src) {
 /* ---------------------- datos de ejemplo (no se guardan) ---------------------- */
 function ejemplo() {
   const l = lunes(hoyISO());
-  const v = (d, hora, entidad, personas, obs) =>
-    ({ id: uid(), fecha: suma(l, d), hora, entidad, personas, observaciones: obs || "" });
+  const v = (d, hora, entidad, personas, resultado, obs) =>
+    ({ id: uid(), fecha: suma(l, d), hora, entidad, personas, resultado, observaciones: obs || "" });
   return [
-    v(0, "09:00", "Municipalidad Distrital de Santiago", ["J. Quispe", "L. Ramos"], "Coordinar con Secretaría General."),
-    v(1, "10:30", "UGEL 06 Ate", ["J. Quispe"], ""),
-    v(2, "09:00", "Hospital Regional de Ica", ["M. Flores"], "Llevar copia del expediente."),
-    v(2, "15:00", "EPS Tacna S.A.", ["R. Vargas", "M. Flores"], ""),
-    v(4, "11:00", "Municipalidad Provincial de Huaura", ["R. Vargas"], "Segunda visita de verificación.")
+    v(-3, "10:00", "Municipalidad Distrital de Pátapo", ["R. Vargas"], "negada", "No permitieron el ingreso."),
+    v(0, "09:00", "Municipalidad Distrital de Santiago", ["J. Quispe", "L. Ramos"], "exitosa", "Documentación completa."),
+    v(1, "10:30", "UGEL 06 Ate", ["J. Quispe"], "", ""),
+    v(2, "09:00", "Hospital Regional de Ica", ["M. Flores"], "", "Llevar copia del expediente."),
+    v(2, "15:00", "EPS Tacna S.A.", ["R. Vargas", "M. Flores"], "", ""),
+    v(4, "11:00", "Municipalidad Provincial de Huaura", ["R. Vargas"], "", "Segunda visita de verificación.")
   ];
 }
 
@@ -318,7 +373,8 @@ async function storeSupabase(cfg) {
   await cargarScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js");
   const sb = window.supabase.createClient(cfg.url, cfg.anonKey);
   let alCambiar = null;
-  const deFila = (r) => ({ ...r, hora: hhmm(r.hora), personas: listaP(r.personas), observaciones: r.observaciones || "" });
+  const deFila = (r) => ({ ...r, hora: hhmm(r.hora), personas: listaP(r.personas), resultado: r.resultado || "", observaciones: r.observaciones || "" });
+  const aFila = (o) => ({ ...o, resultado: o.resultado || null });
   const leer = async () => {
     const { data, error } = await sb.from("visitas").select("*");
     if (error) { console.warn(error.message); return []; }
@@ -332,7 +388,7 @@ async function storeSupabase(cfg) {
       refrescar();
       sb.channel("visitas").on("postgres_changes", { event: "*", schema: "public", table: "visitas" }, refrescar).subscribe();
     },
-    async guardar(o) { const { error } = await sb.from("visitas").upsert(o); if (error) throw error; if (alCambiar) alCambiar(await leer()); },
+    async guardar(o) { const { error } = await sb.from("visitas").upsert(aFila(o)); if (error) throw error; if (alCambiar) alCambiar(await leer()); },
     async borrar(id) { const { error } = await sb.from("visitas").delete().eq("id", id); if (error) throw error; if (alCambiar) alCambiar(await leer()); },
     async probarEdicion() {
       const { data } = await sb.auth.getSession();
@@ -365,7 +421,7 @@ const EJEMPLO = ejemplo();
 const S = {
   reales: [], visitas: EJEMPLO, ejemplo: true,
   store: null, edicion: false,
-  vista: "mes", cursor: hoyISO(), persona: "", hoy: hoyISO()
+  vista: "mes", cursor: hoyISO(), personas: [], filtroRes: "", hoy: hoyISO()
 };
 
 function aplicar(filas) {
@@ -375,8 +431,13 @@ function aplicar(filas) {
   render();
 }
 const visibles = () => S.visitas
-  .filter((v) => !S.persona || listaP(v.personas).includes(S.persona))
+  .filter((v) => !S.personas.length || listaP(v.personas).some((p) => S.personas.includes(p)))
   .sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora));
+/* Sin resultado registrado, la inspección solo está programada. */
+const resDe = (v) => v.resultado === "exitosa" ? "exitosa" : v.resultado === "negada" ? "negada" : "pendiente";
+const claseRes = (v) => v.resultado === "exitosa" ? "ok" : v.resultado === "negada" ? "mal" : "prog";
+const ROTULO_RES = { exitosa: "Inspección exitosa", negada: "Se negó a la inspección", pendiente: "Sin registrar" };
+const chipRes = (v) => '<span class="chip ' + claseRes(v) + '">' + ROTULO_RES[resDe(v)] + "</span>";
 const personas = () => {
   const s = new Set(); S.visitas.forEach((v) => listaP(v.personas).forEach((p) => s.add(p)));
   return Array.from(s).sort((a, b) => a.localeCompare(b, "es"));
@@ -386,27 +447,59 @@ const entidades = () => Array.from(new Set(S.visitas.map((v) => v.entidad).filte
 /* ---------------------- render ---------------------- */
 function render() {
   const evs = visibles();
+  const calendario = S.vista !== "resultados";
   $("#rotulo").textContent = rotulo().replace(/^./, (c) => c.toUpperCase());
   $("#btn-edicion").textContent = S.edicion ? "Edición activa · salir" : "Activar edición";
   $("#btn-edicion").classList.toggle("activo", S.edicion);
   $("#btn-nueva").hidden = !S.edicion;
+  $("#btn-hoy").hidden = !calendario;
+  $(".flechas").hidden = !calendario;
 
-  const sel = $("#filtro-persona");
   const gente = personas();
-  sel.innerHTML = '<option value="">Todas las personas</option>' + gente.map((p) => '<option value="' + esc(p) + '"' + (p === S.persona ? " selected" : "") + ">" + esc(p) + "</option>").join("");
-  sel.classList.toggle("activo", !!S.persona);
+  $("#btn-personas").textContent = S.personas.length ? "Personas (" + S.personas.length + ")" : "Personas";
+  $("#btn-personas").classList.toggle("activo", S.personas.length > 0);
+  $("#toggles-personas").innerHTML = (gente.length
+    ? gente.map((p) => '<button type="button" class="tog" data-persona="' + esc(p) + '" aria-pressed="' + S.personas.includes(p) + '">' + esc(p) + "</button>").join("")
+      + (S.personas.length ? '<button type="button" class="tog" id="limpiar-personas">Ver a todos</button>' : "")
+    : '<span class="ayuda">Todavía no hay personas asignadas a ninguna inspección.</span>');
   $("#lista-personas").innerHTML = gente.map((p) => '<option value="' + esc(p) + '"></option>').join("");
   $("#lista-entidades").innerHTML = entidades().map((e) => '<option value="' + esc(e) + '"></option>').join("");
 
   renderAviso();
   if (S.vista === "mes") renderMes(evs);
+  else if (S.vista === "resultados") renderResultados(evs);
   else renderTiempo(evs, S.vista === "semana" ? Array.from({ length: 7 }, (_, i) => suma(lunes(S.cursor), i)) : [S.cursor]);
+  $("#leyenda").hidden = !calendario;
 
   $("#pie-fuente").textContent = "Datos: " + (S.store ? S.store.etiqueta : "cargando…");
-  $("#pie-cuenta").textContent = evs.length + (evs.length === 1 ? " visita" : " visitas") + (S.persona ? " de " + S.persona : "") + " en total";
+  $("#pie-cuenta").textContent = evs.length + (evs.length === 1 ? " visita" : " visitas")
+    + (S.personas.length ? " de " + S.personas.join(", ") : "") + " en total";
+}
+
+function renderResultados(evs) {
+  const cuenta = (k) => evs.filter((v) => resDe(v) === k).length;
+  const f = S.filtroRes;
+  const lista = evs.filter((v) => !f || resDe(v) === f).sort((a, b) => (b.fecha + b.hora).localeCompare(a.fecha + a.hora));
+  const tog = (valor, texto, cls) => '<button type="button" class="tog ' + (cls || "") + '" data-res="' + valor + '" aria-pressed="' + (f === valor) + '">'
+    + texto + '<span class="n">' + (valor ? cuenta(valor) : evs.length) + "</span></button>";
+  const filas = lista.map((v) => {
+    const d = aDate(v.fecha);
+    return '<button type="button" class="fila-r" data-id="' + v.id + '">'
+      + '<span class="f">' + d.getDate() + " " + MES[d.getMonth()].slice(0, 3) + " " + d.getFullYear() + " · " + hhmm(v.hora) + "</span>"
+      + '<span class="ent">' + esc(v.entidad) + "</span>"
+      + '<span class="quien">' + (listaP(v.personas).join(", ") || "sin asignar") + "</span>"
+      + '<span class="der">' + chipRes(v) + "</span></button>";
+  }).join("");
+  const c = $("#lienzo");
+  c.className = "tablero";
+  c.innerHTML = '<header><div class="toggles">'
+    + tog("", "Todas") + tog("exitosa", "Exitosas", "ok") + tog("negada", "Se negó", "mal") + tog("pendiente", "Sin registrar")
+    + "</div></header>"
+    + (filas || '<p class="sin-filas">No hay inspecciones con ese resultado.</p>');
 }
 
 function rotulo() {
+  if (S.vista === "resultados") return "Resultados de las inspecciones";
   const d = aDate(S.cursor);
   if (S.vista === "mes") return MES[d.getMonth()] + " " + d.getFullYear();
   if (S.vista === "dia") return DIA[d.getDay()] + " " + d.getDate() + " de " + MES[d.getMonth()];
@@ -423,7 +516,7 @@ function renderAviso() {
   } else c.innerHTML = "";
 }
 
-const chipEv = (v) => '<button class="ev" data-id="' + v.id + '" title="' + esc(v.entidad)
+const chipEv = (v) => '<button class="ev ' + claseRes(v) + '" data-id="' + v.id + '" title="' + ROTULO_RES[resDe(v)] + " · " + esc(v.entidad)
   + (listaP(v.personas).length ? " · " + esc(listaP(v.personas).join(", ")) : "") + '"><b>' + hhmm(v.hora) + "</b>" + esc(v.entidad) + "</button>";
 
 function renderMes(evs) {
@@ -442,6 +535,7 @@ function renderMes(evs) {
       + (lista.length > 3 ? '<button class="mas" data-ir="' + f + '">+' + (lista.length - 3) + " más</button>" : "")
       + "</div>";
   }
+  $("#lienzo").className = "lienzo";
   $("#lienzo").innerHTML = '<div class="dow">' + DOW.map((x) => "<span>" + x + "</span>").join("") + "</div>"
     + '<div class="mes">' + celdas + "</div>";
 }
@@ -479,7 +573,7 @@ function renderTiempo(evs, dias) {
         const izq = "calc(2px + " + i + "*(100% - 4px)/" + g.length + ")";
         const gente = listaP(v.personas);
         const solo = dias.length === 1;
-        bloques += '<button class="bloque" data-id="' + v.id + '" title="' + hhmm(v.hora) + " · " + esc(v.entidad) + (gente.length ? " · " + esc(gente.join(", ")) : "") + '" style="top:' + top + "px;height:" + (FILA - 3) + "px;left:" + izq + ";width:" + ancho + '">'
+        bloques += '<button class="bloque ' + claseRes(v) + '" data-id="' + v.id + '" title="' + hhmm(v.hora) + " · " + esc(v.entidad) + (gente.length ? " · " + esc(gente.join(", ")) : "") + " · " + ROTULO_RES[resDe(v)] + '" style="top:' + top + "px;height:" + (FILA - 3) + "px;left:" + izq + ";width:" + ancho + '">'
           + (solo
             ? '<div class="e"><span class="h">' + hhmm(v.hora) + "</span> " + esc(v.entidad) + "</div>"
             : '<div class="h">' + hhmm(v.hora) + '</div><div class="e">' + esc(v.entidad) + "</div>")
@@ -496,6 +590,7 @@ function renderTiempo(evs, dias) {
     return '<div class="col-dia' + (d.getDay() === 0 || d.getDay() === 6 ? " finde" : "") + '">' + franjas + bloques + ahora + "</div>";
   }).join("");
 
+  $("#lienzo").className = "lienzo";
   $("#lienzo").innerHTML = '<div class="grid-scroll' + (dias.length === 1 ? " dia-detalle" : "") + '">'
     + '<div class="cabecera" style="grid-template-columns:' + cols + '"><div class="hueco"></div>' + cab + "</div>"
     + '<div class="horas" style="grid-template-columns:' + cols + '"><div class="col-horas">' + etiquetas + "</div>" + columnas + "</div></div>";
@@ -557,11 +652,13 @@ function abrir(v, fecha, hora) {
   $("#f-entidad").value = v ? v.entidad || "" : "";
   $("#f-fecha").value = v ? v.fecha || "" : (fecha || S.cursor);
   $("#f-hora").value = v ? hhmm(v.hora) : (hora || "09:00");
+  $("#f-resultado").value = v ? v.resultado || "" : "";
   $("#f-obs").value = v ? v.observaciones || "" : "";
   cajaP._val = v ? listaP(v.personas).slice() : [];
   cajaP.querySelector("input").value = "";
   chipsRender();
-  ["#f-entidad", "#f-fecha", "#f-hora", "#f-obs"].forEach((s) => { $(s).readOnly = ro; $(s).disabled = ro && $(s).tagName === "SELECT"; });
+  ["#f-entidad", "#f-fecha", "#f-hora", "#f-obs"].forEach((s) => { $(s).readOnly = ro; });
+  $("#f-resultado").disabled = ro;
   cajaP.querySelector("input").hidden = ro;
   $("#f-eliminar").hidden = ro || !v;
   $("#form").querySelector('button[type="submit"]').hidden = ro;
@@ -578,6 +675,7 @@ $("#form").addEventListener("submit", async (ev) => {
     fecha: $("#f-fecha").value,
     hora: $("#f-hora").value,
     personas: chipsGet(),
+    resultado: $("#f-resultado").value,
     observaciones: $("#f-obs").value.trim()
   };
   if (!o.entidad || !o.fecha || !o.hora) return;
@@ -594,6 +692,8 @@ $("#f-eliminar").addEventListener("click", async () => {
 $("#lienzo").addEventListener("click", (ev) => {
   const ir = ev.target.closest("[data-ir]");
   if (ir) { S.cursor = ir.dataset.ir; S.vista = "dia"; sincronizarVistas(); render(); return; }
+  const res = ev.target.closest("[data-res]");
+  if (res) { S.filtroRes = res.dataset.res; return render(); }
   const b = ev.target.closest("[data-id]");
   if (b) { const v = S.visitas.find((x) => x.id === b.dataset.id); if (v) abrir(v); return; }
   if (!S.edicion) return;
@@ -604,13 +704,27 @@ $("#lienzo").addEventListener("click", (ev) => {
   if (celda) return abrir(null, celda.dataset.fecha, "09:00");
 });
 
+/* panel de personas y filtro de resultados */
+$("#btn-personas").addEventListener("click", () => {
+  const p = $("#panel-personas");
+  p.hidden = !p.hidden;
+  $("#btn-personas").setAttribute("aria-expanded", String(!p.hidden));
+});
+$("#panel-personas").addEventListener("click", (ev) => {
+  if (ev.target.id === "limpiar-personas") { S.personas = []; return render(); }
+  const t = ev.target.closest("[data-persona]");
+  if (!t) return;
+  const p = t.dataset.persona;
+  S.personas = S.personas.includes(p) ? S.personas.filter((x) => x !== p) : S.personas.concat(p);
+  render();
+});
+
 /* barra superior */
 function sincronizarVistas() { $$(".vistas button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.vista === S.vista))); }
 $$(".vistas button").forEach((b) => b.addEventListener("click", () => { S.vista = b.dataset.vista; sincronizarVistas(); render(); }));
 $("#btn-hoy").addEventListener("click", () => { S.cursor = hoyISO(); render(); });
 $("#btn-ant").addEventListener("click", () => { S.cursor = S.vista === "mes" ? sumaMes(S.cursor, -1) : suma(S.cursor, S.vista === "semana" ? -7 : -1); render(); });
 $("#btn-sig").addEventListener("click", () => { S.cursor = S.vista === "mes" ? sumaMes(S.cursor, 1) : suma(S.cursor, S.vista === "semana" ? 7 : 1); render(); });
-$("#filtro-persona").addEventListener("change", (e) => { S.persona = e.target.value; render(); });
 $("#btn-nueva").addEventListener("click", () => abrir(null, S.vista === "mes" ? S.cursor : S.cursor, "09:00"));
 $("#btn-edicion").addEventListener("click", async () => {
   if (S.edicion) { S.edicion = false; render(); return; }
