@@ -32,16 +32,35 @@ Son dos piezas independientes:
 
    Para quitar o agregar un editor más adelante basta con otro `insert` o un
    `delete` sobre esta tabla: no hay que tocar la aplicación.
-4. **Project Settings → API**: copiar `Project URL` y la clave `anon`, y
+4. Registrar a los inspectores, con el nombre **tal cual** se escribe en la
+   agenda:
+
+   ```sql
+   insert into public.inspectores (nombre, email) values
+     ('J. Quispe', 'jquispe@dominio.pe'),
+     ('R. Vargas', 'rvargas@dominio.pe')
+   on conflict (nombre) do update set email = excluded.email;
+   ```
+
+   Cada uno podrá cambiar el **estado** y las **observaciones** de sus propias
+   visitas, y nada más. Los editores del paso 3 administran todo.
+
+5. **Project Settings → API**: copiar `Project URL` y la clave `anon`, y
    pegarlas en [`config.js`](config.js).
 
 > La clave `anon` viaja en el navegador de cualquier visitante y eso es normal:
 > quién puede escribir lo decide el RLS del paso 2, no la clave.
 
-5. **Authentication → URL Configuration**: poner
+6. **Authentication → URL Configuration**: poner
    `https://gsilvestre-pixel.github.io/catty/` como *Site URL* y agregarla
    también en *Redirect URLs*. Sin esto, el enlace de acceso que reciben los
    editores por correo no los devuelve a la agenda.
+
+> **Proyecto que ya estaba funcionando:** no vuelvas a ejecutar `schema.sql`.
+> Ejecuta una sola vez
+> [`db/migracion-01-estados-e-inspectores.sql`](db/migracion-01-estados-e-inspectores.sql),
+> que renombra `resultado` a `estado`, agrega *reprogramado* y crea la tabla
+> `inspectores` con sus permisos, sin tocar las visitas ya cargadas.
 
 ## Paso 2 — Dirección pública (GitHub Pages)
 

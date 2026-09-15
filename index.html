@@ -25,6 +25,7 @@
   --hoy:#B4551F; --hoy-soft:#FBEADF;
   --ok:#1C7A52; --ok-soft:#DEF0E6;
   --mal:#A5382C; --mal-soft:#F8E4E0;
+  --rep:#8A5A12; --rep-soft:#F6EBD5;
   --shadow:0 1px 2px rgba(19,27,32,.06), 0 8px 24px rgba(19,27,32,.07);
   --radius:10px; --fila:52px;
   --mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
@@ -90,6 +91,7 @@ main{padding-bottom:56px}
 .ev:hover{filter:brightness(.97)}
 .ev.ok{background:var(--ok-soft); color:var(--ok); border-left-color:var(--ok)}
 .ev.mal{background:var(--mal-soft); color:var(--mal); border-left-color:var(--mal)}
+.ev.rep{background:var(--rep-soft); color:var(--rep); border-left-color:var(--rep)}
 .ev b{font-family:var(--mono); font-weight:500; font-size:10.5px; margin-right:4px}
 .mas{font-size:10.5px; color:var(--ink-3); font-family:var(--mono); padding-left:4px; text-align:left; background:none; border:none; cursor:pointer}
 
@@ -118,6 +120,7 @@ main{padding-bottom:56px}
 .bloque:hover{filter:brightness(.97)}
 .bloque.ok{background:var(--ok-soft); color:var(--ok); border-color:color-mix(in srgb, var(--ok) 35%, transparent); border-left-color:var(--ok)}
 .bloque.mal{background:var(--mal-soft); color:var(--mal); border-color:color-mix(in srgb, var(--mal) 35%, transparent); border-left-color:var(--mal)}
+.bloque.rep{background:var(--rep-soft); color:var(--rep); border-color:color-mix(in srgb, var(--rep) 35%, transparent); border-left-color:var(--rep)}
 .bloque .h{font-family:var(--mono); font-size:10.5px; font-weight:500; opacity:.85}
 .bloque .e{font-size:12.5px; font-weight:600; line-height:1.25; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .dia-detalle .bloque .e{white-space:normal}
@@ -155,7 +158,7 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
 .leyenda{display:flex; gap:16px; flex-wrap:wrap; font-size:12.5px; color:var(--ink-2); padding:10px 2px 0}
 .leyenda span{display:inline-flex; align-items:center; gap:6px}
 .leyenda i{width:10px; height:10px; border-radius:3px; display:inline-block}
-.leyenda i.prog{background:var(--accent)} .leyenda i.ok{background:var(--ok)} .leyenda i.mal{background:var(--mal)}
+.leyenda i.prog{background:var(--accent)} .leyenda i.ok{background:var(--ok)} .leyenda i.mal{background:var(--mal)} .leyenda i.rep{background:var(--rep)}
 
 .panel{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:12px 14px; margin-top:14px}
 .panel h2{font-size:12px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-3); font-weight:600; margin-bottom:9px}
@@ -166,6 +169,7 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
 .tog[aria-pressed="true"]{background:var(--accent); border-color:var(--accent); color:#fff}
 .tog[aria-pressed="true"].ok{background:var(--ok); border-color:var(--ok)}
 .tog[aria-pressed="true"].mal{background:var(--mal); border-color:var(--mal)}
+.tog[aria-pressed="true"].rep{background:var(--rep); border-color:var(--rep)}
 .tog .n{font-family:var(--mono); font-size:11.5px; opacity:.75; margin-left:5px}
 
 .chip{display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600; padding:3px 9px; border-radius:99px; border:1px solid transparent; white-space:nowrap}
@@ -173,6 +177,7 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
 .chip.prog{background:var(--accent-soft); color:var(--accent-ink); border-color:color-mix(in srgb, var(--accent) 30%, transparent)}
 .chip.ok{background:var(--ok-soft); color:var(--ok); border-color:color-mix(in srgb, var(--ok) 30%, transparent)}
 .chip.mal{background:var(--mal-soft); color:var(--mal); border-color:color-mix(in srgb, var(--mal) 30%, transparent)}
+.chip.rep{background:var(--rep-soft); color:var(--rep); border-color:color-mix(in srgb, var(--rep) 30%, transparent)}
 
 .tablero{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); margin-top:14px; overflow:hidden}
 .tablero > header{padding:12px 14px; border-bottom:1px solid var(--line-soft)}
@@ -242,8 +247,11 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
 .ag-acciones .si:hover{background:var(--ok-soft)}
 .ag-acciones .no{color:var(--mal); border-color:color-mix(in srgb, var(--mal) 40%, var(--line))}
 .ag-acciones .no:hover{background:var(--mal-soft)}
+.ag-acciones .re{color:var(--rep); border-color:color-mix(in srgb, var(--rep) 40%, var(--line))}
+.ag-acciones .re:hover{background:var(--rep-soft)}
 .ag-item.ok{border-left-color:var(--ok)}
 .ag-item.mal{border-left-color:var(--mal)}
+.ag-item.rep{border-left-color:var(--rep)}
 .ag-hora{font-family:var(--mono); font-size:13.5px; font-weight:500; color:var(--ink-2); min-width:46px; padding-top:1px}
 .ag-cuerpo{flex:1; min-width:0}
 .ag-cuerpo b{display:block; font-size:15px; line-height:1.3}
@@ -254,6 +262,10 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
   border-radius:9px; padding:10px; font-size:13.5px; font-weight:600; cursor:pointer}
 .mas-ancho:hover{background:var(--surface-2)}
 
+.nota-rol{
+  display:block; margin:0; padding:10px 12px; border-radius:9px;
+  background:var(--accent-soft); color:var(--accent-ink); font-size:13px; line-height:1.4;
+}
 .pie{padding:18px 0 0; font-size:12.5px; color:var(--ink-3); display:flex; gap:14px; flex-wrap:wrap}
 
 @media (max-width:640px){
@@ -338,9 +350,10 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
   <div id="aviso"></div>
   <section class="lienzo" id="lienzo"></section>
   <div class="leyenda" id="leyenda">
-    <span><i class="prog"></i> Programada (sin resultado)</span>
+    <span><i class="prog"></i> Programada</span>
     <span><i class="ok"></i> Inspección exitosa</span>
     <span><i class="mal"></i> Se negó a la inspección</span>
+    <span><i class="rep"></i> Reprogramado</span>
   </div>
   <p class="pie"><span id="pie-fuente">—</span><span id="pie-cuenta"></span></p>
 </main>
@@ -381,12 +394,14 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
         <label for="f-personas-in">Personas que harán la inspección</label>
         <div class="chips-in" id="f-personas"><input type="text" id="f-personas-in" list="lista-personas" placeholder="Nombre + Enter"></div>
       </div>
+      <p class="nota-rol" id="aviso-rol" hidden>Estás identificado como inspector de esta visita: puedes registrar su <b>estado</b> y sus <b>observaciones</b>. El resto lo administra quien programa la agenda.</p>
       <div class="campo">
-        <label for="f-resultado">Resultado de la inspección</label>
-        <select id="f-resultado">
-          <option value="">Sin registrar (programada)</option>
+        <label for="f-estado">Estado de la inspección</label>
+        <select id="f-estado">
+          <option value="">Programada</option>
           <option value="exitosa">Inspección exitosa</option>
           <option value="negada">Se negó a la inspección</option>
+          <option value="reprogramado">Reprogramado</option>
         </select>
       </div>
       <div class="campo">
@@ -445,8 +460,8 @@ function cargarScript(src) {
 /* ---------------------- datos de ejemplo (no se guardan) ---------------------- */
 function ejemplo() {
   const l = lunes(hoyISO());
-  const v = (d, hora, entidad, personas, resultado, obs) =>
-    ({ id: uid(), fecha: suma(l, d), hora, entidad, personas, resultado, observaciones: obs || "" });
+  const v = (d, hora, entidad, personas, estado, obs) =>
+    ({ id: uid(), fecha: suma(l, d), hora, entidad, personas, estado, observaciones: obs || "" });
   return [
     v(-3, "10:00", "Municipalidad Distrital de Pátapo", ["R. Vargas"], "negada", "No permitieron el ingreso."),
     v(0, "09:00", "Municipalidad Distrital de Santiago", ["J. Quispe", "L. Ramos"], "exitosa", "Documentación completa."),
@@ -472,7 +487,7 @@ async function storeClaudeDb() {
     },
     async guardar(o) { await db.doc("visitas/" + o.id).set(limpio(o)); },
     async borrar(id) { await db.doc("visitas/" + id).delete(); },
-    async probarEdicion() { try { await db.doc("meta/acceso").set({ ts: Date.now() }); return true; } catch (e) { return false; } }
+    async probarEdicion() { try { await db.doc("meta/acceso").set({ ts: Date.now() }); return { rol: "editor" }; } catch (e) { return false; } }
   };
 }
 
@@ -480,12 +495,15 @@ async function storeSupabase(cfg) {
   await cargarScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js");
   const sb = window.supabase.createClient(cfg.url, cfg.anonKey);
   let alCambiar = null;
-  const deFila = (r) => ({ ...r, hora: hhmm(r.hora), personas: listaP(r.personas), resultado: r.resultado || "", observaciones: r.observaciones || "" });
-  const aFila = (o) => ({ ...o, resultado: o.resultado || null });
+  const deFila = (r) => ({ ...r, hora: hhmm(r.hora), personas: listaP(r.personas), estado: r.estado || "", observaciones: r.observaciones || "" });
+  const aFila = (o) => ({ ...o, estado: o.estado || null });
+  const ids = new Set();
   const leer = async () => {
     const { data, error } = await sb.from("visitas").select("*");
     if (error) { console.warn(error.message); return []; }
-    return (data || []).map(deFila);
+    const filas = (data || []).map(deFila);
+    ids.clear(); filas.forEach((f) => ids.add(f.id));
+    return filas;
   };
   return {
     tipo: "supabase", etiqueta: "PostgreSQL (Supabase)", cliente: sb,
@@ -495,14 +513,36 @@ async function storeSupabase(cfg) {
       refrescar();
       sb.channel("visitas").on("postgres_changes", { event: "*", schema: "public", table: "visitas" }, refrescar).subscribe();
     },
-    async guardar(o) { const { error } = await sb.from("visitas").upsert(aFila(o)); if (error) throw error; if (alCambiar) alCambiar(await leer()); },
+    /* Alta e actualización van separadas: el inspector solo tiene permiso
+       de actualizar sus visitas, no de insertar. */
+    async guardar(o) {
+      const fila = aFila(o);
+      let error;
+      if (ids.has(o.id)) {
+        const campos = { ...fila }; delete campos.id;
+        ({ error } = await sb.from("visitas").update(campos).eq("id", o.id));
+      } else {
+        ({ error } = await sb.from("visitas").insert(fila));
+      }
+      if (error) throw error;
+      if (alCambiar) alCambiar(await leer());
+    },
+    /* Nombres del equipo registrado (la vista pública no expone correos). */
+    async roster() {
+      const { data } = await sb.from("inspectores_publicos").select("nombre");
+      return (data || []).map((r) => r.nombre).filter(Boolean);
+    },
     async borrar(id) { const { error } = await sb.from("visitas").delete().eq("id", id); if (error) throw error; if (alCambiar) alCambiar(await leer()); },
     async probarEdicion() {
       const { data } = await sb.auth.getSession();
       const correo = data && data.session && data.session.user ? data.session.user.email : null;
       if (!correo) return "sesion";
+      /* Las políticas dejan ver únicamente la fila propia de cada tabla. */
       const { data: eds } = await sb.from("editores").select("email");
-      return !!eds && eds.some((r) => (r.email || "").toLowerCase() === correo.toLowerCase());
+      if (eds && eds.length) return { rol: "editor" };
+      const { data: ins } = await sb.from("inspectores").select("nombre");
+      if (ins && ins.length) return { rol: "inspector", nombre: ins[0].nombre };
+      return false;
     }
   };
 }
@@ -518,7 +558,7 @@ function storeLocal() {
     escucha(cb) { alCambiar = cb; cb(cache.slice()); },
     async guardar(o) { const i = cache.findIndex((x) => x.id === o.id); if (i >= 0) cache[i] = o; else cache.push(o); persistir(); alCambiar(cache.slice()); },
     async borrar(id) { cache = cache.filter((x) => x.id !== id); persistir(); alCambiar(cache.slice()); },
-    async probarEdicion() { return true; }
+    async probarEdicion() { return { rol: "editor" }; }
   };
 }
 </script>
@@ -527,7 +567,7 @@ function storeLocal() {
 const EJEMPLO = ejemplo();
 const S = {
   reales: [], visitas: EJEMPLO, ejemplo: true,
-  store: null, edicion: false,
+  store: null, edicion: false, rol: "lector", yo: "", roster: [],
   vista: "mes", cursor: hoyISO(), personas: [], filtroRes: "", verPasadas: false, hoy: hoyISO()
 };
 
@@ -540,13 +580,26 @@ function aplicar(filas) {
 const visibles = () => S.visitas
   .filter((v) => !S.personas.length || listaP(v.personas).some((p) => S.personas.includes(p)))
   .sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora));
-/* Sin resultado registrado, la inspección solo está programada. */
-const resDe = (v) => v.resultado === "exitosa" ? "exitosa" : v.resultado === "negada" ? "negada" : "pendiente";
-const claseRes = (v) => v.resultado === "exitosa" ? "ok" : v.resultado === "negada" ? "mal" : "prog";
-const ROTULO_RES = { exitosa: "Inspección exitosa", negada: "Se negó a la inspección", pendiente: "Sin registrar" };
+/* Estado de la inspección; vacío significa que solo está programada. */
+const EST = {
+  pendiente:    { rot: "Programada", cls: "prog" },
+  exitosa:      { rot: "Inspección exitosa", cls: "ok" },
+  negada:       { rot: "Se negó a la inspección", cls: "mal" },
+  reprogramado: { rot: "Reprogramado", cls: "rep" }
+};
+const resDe = (v) => (v.estado && EST[v.estado] && v.estado !== "pendiente") ? v.estado : "pendiente";
+const claseRes = (v) => EST[resDe(v)].cls;
+const ROTULO_RES = { pendiente: EST.pendiente.rot, exitosa: EST.exitosa.rot, negada: EST.negada.rot, reprogramado: EST.reprogramado.rot };
 const chipRes = (v) => '<span class="chip ' + claseRes(v) + '">' + ROTULO_RES[resDe(v)] + "</span>";
+
+/* Quién puede qué: el editor administra la agenda completa; el inspector
+   solo cambia el estado y las observaciones de las visitas que tiene
+   asignadas, identificándose con su correo.                              */
+const puedeTodo = () => S.edicion && S.rol === "editor";
+const puedeEstado = (v) => S.edicion && (S.rol === "editor" || (S.rol === "inspector" && listaP(v.personas).includes(S.yo)));
 const personas = () => {
-  const s = new Set(); S.visitas.forEach((v) => listaP(v.personas).forEach((p) => s.add(p)));
+  const s = new Set(S.roster);
+  S.visitas.forEach((v) => listaP(v.personas).forEach((p) => s.add(p)));
   return Array.from(s).sort((a, b) => a.localeCompare(b, "es"));
 };
 const entidades = () => Array.from(new Set(S.visitas.map((v) => v.entidad).filter(Boolean))).sort((a, b) => a.localeCompare(b, "es"));
@@ -556,11 +609,11 @@ function render() {
   const evs = visibles();
   const calendario = S.vista === "mes" || S.vista === "semana" || S.vista === "dia";
   $("#rotulo").textContent = rotulo().replace(/^./, (c) => c.toUpperCase());
-  $("#btn-edicion").textContent = S.edicion ? "Edición activa · salir" : "Activar edición";
+  $("#btn-edicion").textContent = S.edicion ? (S.rol === "editor" ? "Edición activa · salir" : (S.yo || "Sesión") + " · salir") : "Activar edición";
   $("#btn-edicion").classList.toggle("activo", S.edicion);
-  $("#btn-nueva").hidden = !S.edicion;
-  $("#fab").hidden = !S.edicion;
-  $("#m-edicion").textContent = S.edicion ? "Salir de edición" : "Activar edición";
+  $("#btn-nueva").hidden = !puedeTodo();
+  $("#fab").hidden = !puedeTodo();
+  $("#m-edicion").textContent = S.edicion ? "Cerrar sesión" : "Activar edición";
   $("#btn-hoy").hidden = !calendario;
   $(".flechas").hidden = !calendario;
 
@@ -610,7 +663,7 @@ function renderAgenda(evs) {
       }
       const gente = listaP(v.personas);
       /* Si ya pasó la hora y falta el resultado, se marca desde la propia tarjeta. */
-      const marcar = S.edicion && !S.ejemplo && !v.resultado && v.fecha <= S.hoy;
+      const marcar = puedeEstado(v) && !S.ejemplo && !v.estado && v.fecha <= S.hoy;
       html += '<div class="ag-item ' + claseRes(v) + '">'
         + '<button type="button" class="ag-abrir" data-id="' + v.id + '">'
         + '<span class="ag-hora">' + hhmm(v.hora) + "</span>"
@@ -618,10 +671,11 @@ function renderAgenda(evs) {
         + (gente.length ? "<small>" + esc(gente.join(", ")) + "</small>" : '<small>Sin personas asignadas</small>')
         + (v.observaciones ? "<small>" + esc(v.observaciones) + "</small>" : "")
         + "</span>"
-        + (v.resultado ? chipRes(v) : "") + "</button>"
+        + (v.estado ? chipRes(v) : "") + "</button>"
         + (marcar
           ? '<div class="ag-acciones"><button type="button" class="si" data-marcar="exitosa" data-visita="' + v.id + '">Exitosa</button>'
-            + '<button type="button" class="no" data-marcar="negada" data-visita="' + v.id + '">Se negó</button></div>'
+            + '<button type="button" class="no" data-marcar="negada" data-visita="' + v.id + '">Se negó</button>'
+            + '<button type="button" class="re" data-marcar="reprogramado" data-visita="' + v.id + '">Reprog.</button></div>'
           : "")
         + "</div>";
     });
@@ -648,14 +702,14 @@ function renderResultados(evs) {
   const c = $("#lienzo");
   c.className = "tablero";
   c.innerHTML = '<header><div class="toggles">'
-    + tog("", "Todas") + tog("exitosa", "Exitosas", "ok") + tog("negada", "Se negó", "mal") + tog("pendiente", "Sin registrar")
+    + tog("", "Todas") + tog("pendiente", "Programadas") + tog("exitosa", "Exitosas", "ok") + tog("negada", "Se negó", "mal") + tog("reprogramado", "Reprogramadas", "rep")
     + "</div></header>"
-    + (filas || '<p class="sin-filas">No hay inspecciones con ese resultado.</p>');
+    + (filas || '<p class="sin-filas">No hay inspecciones en ese estado.</p>');
 }
 
 function rotulo() {
   if (S.vista === "agenda") return S.verPasadas ? "Todas las visitas" : "Próximas visitas";
-  if (S.vista === "resultados") return "Resultados de las inspecciones";
+  if (S.vista === "resultados") return "Estado de las inspecciones";
   const d = aDate(S.cursor);
   if (S.vista === "mes") return MES[d.getMonth()] + " " + d.getFullYear();
   if (S.vista === "dia") return DIA[d.getDay()] + " " + d.getDate() + " de " + MES[d.getMonth()];
@@ -772,7 +826,7 @@ function chipsRender() {
   (cajaP._val || []).forEach((p, i) => {
     const s = document.createElement("span");
     s.className = "persona"; s.textContent = p;
-    if (S.edicion) {
+    if (puedeTodo()) {
       const x = document.createElement("button");
       x.type = "button"; x.className = "quita"; x.textContent = "×"; x.setAttribute("aria-label", "Quitar a " + p);
       x.onclick = () => { cajaP._val.splice(i, 1); chipsRender(); };
@@ -803,37 +857,43 @@ const chipsGet = () => { const p = cajaP.querySelector("input").value.trim(); co
 let editando = null;
 function abrir(v, fecha, hora) {
   editando = v || null;
-  const ro = !S.edicion;
+  const soloEstado = !!v && !puedeTodo() && puedeEstado(v);   /* inspector en su propia visita */
+  const ro = v ? !(puedeTodo() || soloEstado) : !puedeTodo();
   $("#dlg-titulo").textContent = v ? (ro ? "Visita programada" : "Editar visita") : "Nueva visita";
   $("#f-entidad").value = v ? v.entidad || "" : "";
   $("#f-fecha").value = v ? v.fecha || "" : (fecha || S.cursor);
   $("#f-hora").value = v ? hhmm(v.hora) : (hora || "09:00");
-  $("#f-resultado").value = v ? v.resultado || "" : "";
+  $("#f-estado").value = v ? v.estado || "" : "";
   $("#f-obs").value = v ? v.observaciones || "" : "";
   cajaP._val = v ? listaP(v.personas).slice() : [];
   cajaP.querySelector("input").value = "";
   chipsRender();
-  ["#f-entidad", "#f-fecha", "#f-hora", "#f-obs"].forEach((s) => { $(s).readOnly = ro; });
-  $("#f-resultado").disabled = ro;
-  cajaP.querySelector("input").hidden = ro;
-  $("#f-eliminar").hidden = ro || !v;
+  ["#f-entidad", "#f-fecha", "#f-hora"].forEach((s) => { $(s).readOnly = !puedeTodo(); });
+  $("#f-obs").readOnly = ro;
+  $("#f-estado").disabled = ro;
+  cajaP.querySelector("input").hidden = !puedeTodo();
+  $("#f-eliminar").hidden = !puedeTodo() || !v;
   $("#form").querySelector('button[type="submit"]').hidden = ro;
   $("#f-cancelar").textContent = ro ? "Cerrar" : "Cancelar";
+  $("#aviso-rol").hidden = !soloEstado;
   $("#dlg").showModal();
 }
 $("#f-cancelar").addEventListener("click", () => $("#dlg").close());
 $("#form").addEventListener("submit", async (ev) => {
   ev.preventDefault();
   if (!S.edicion) return $("#dlg").close();
-  const o = {
-    id: editando ? editando.id : uid(),
-    entidad: $("#f-entidad").value.trim(),
-    fecha: $("#f-fecha").value,
-    hora: $("#f-hora").value,
-    personas: chipsGet(),
-    resultado: $("#f-resultado").value,
-    observaciones: $("#f-obs").value.trim()
-  };
+  /* El inspector solo envía lo suyo: estado y observaciones. */
+  const o = (editando && !puedeTodo())
+    ? { ...editando, estado: $("#f-estado").value, observaciones: $("#f-obs").value.trim() }
+    : {
+        id: editando ? editando.id : uid(),
+        entidad: $("#f-entidad").value.trim(),
+        fecha: $("#f-fecha").value,
+        hora: $("#f-hora").value,
+        personas: chipsGet(),
+        estado: $("#f-estado").value,
+        observaciones: $("#f-obs").value.trim()
+      };
   if (!o.entidad || !o.fecha || !o.hora) return;
   try { await S.store.guardar(o); $("#dlg").close(); toast("Visita guardada."); }
   catch (e) { toast("No se pudo guardar: " + (e.message || e.code)); }
@@ -851,10 +911,10 @@ $("#lienzo").addEventListener("click", (ev) => {
   const marca = ev.target.closest("[data-marcar]");
   if (marca) {
     const v = S.visitas.find((x) => x.id === marca.dataset.visita);
-    if (!v || !S.edicion) return;
+    if (!v || !puedeEstado(v)) return;
     marca.disabled = true;
-    S.store.guardar({ ...v, resultado: marca.dataset.marcar })
-      .then(() => toast(marca.dataset.marcar === "exitosa" ? "Registrada como exitosa." : "Registrado: se negó a la inspección."))
+    S.store.guardar({ ...v, estado: marca.dataset.marcar })
+      .then(() => toast("Estado registrado: " + ROTULO_RES[marca.dataset.marcar].toLowerCase() + "."))
       .catch((e) => { marca.disabled = false; toast("No se pudo guardar: " + (e.message || e.code)); });
     return;
   }
@@ -863,7 +923,7 @@ $("#lienzo").addEventListener("click", (ev) => {
   if (res) { S.filtroRes = res.dataset.res; return render(); }
   const b = ev.target.closest("[data-id]");
   if (b) { const v = S.visitas.find((x) => x.id === b.dataset.id); if (v) abrir(v); return; }
-  if (!S.edicion) return;
+  if (!puedeTodo()) return;
   if (S.ejemplo && !S.reales.length) { /* crear la primera visita reemplaza el ejemplo */ }
   const fr = ev.target.closest(".franja");
   if (fr) return abrir(null, fr.dataset.fecha, fr.dataset.hora);
@@ -928,7 +988,7 @@ const serieExcel = (f) => { const [a, m, d] = f.split("-").map(Number); return M
 const COL = ["A", "B", "C", "D", "E", "F"];
 
 function libroExcel(evs) {
-  const cab = ["Fecha", "Hora", "Entidad", "Personas", "Resultado", "Observaciones"];
+  const cab = ["Fecha", "Hora", "Entidad", "Personas", "Estado", "Observaciones"];
   const anchos = [12, 8, 46, 28, 24, 52];
   const texto = (ref, v) => '<c r="' + ref + '" t="inlineStr"><is><t xml:space="preserve">' + xesc(v) + "</t></is></c>";
   let filas = '<row r="1">' + cab.map((t, i) => '<c r="' + COL[i] + '1" t="inlineStr" s="1"><is><t>' + xesc(t) + "</t></is></c>").join("") + "</row>";
@@ -1055,7 +1115,7 @@ $("#btn-ant").addEventListener("click", () => { S.cursor = S.vista === "mes" ? s
 $("#btn-sig").addEventListener("click", () => { S.cursor = S.vista === "mes" ? sumaMes(S.cursor, 1) : suma(S.cursor, S.vista === "semana" ? 7 : 1); render(); });
 $("#btn-nueva").addEventListener("click", () => abrir(null, S.vista === "mes" ? S.cursor : S.cursor, "09:00"));
 $("#btn-edicion").addEventListener("click", async () => {
-  if (S.edicion) { S.edicion = false; render(); return; }
+  if (S.edicion) { S.edicion = false; S.rol = "lector"; S.yo = ""; render(); return; }
   if (!S.store) return;
   const b = $("#btn-edicion"); b.disabled = true; b.textContent = "Verificando…";
   let r = false;
@@ -1069,8 +1129,12 @@ $("#btn-edicion").addEventListener("click", async () => {
     }
     render(); return;
   }
-  S.edicion = r === true;
-  if (!S.edicion) toast("Tu acceso es de solo lectura.");
+  const rol = r === true ? { rol: "editor" } : (r && r.rol ? r : null);
+  S.edicion = !!rol;
+  S.rol = rol ? rol.rol : "lector";
+  S.yo = rol && rol.nombre ? rol.nombre : "";
+  if (!rol) toast("Tu correo no está registrado: el acceso queda como solo lectura.");
+  else if (S.rol === "inspector") toast("Sesión de " + S.yo + ": puedes registrar el estado de tus visitas.");
   render();
 });
 document.addEventListener("keydown", (ev) => {
@@ -1092,6 +1156,7 @@ document.addEventListener("keydown", (ev) => {
   if (!store) { try { store = await storeClaudeDb(); } catch (e) { console.warn(e); } }
   if (!store) store = storeLocal();
   S.store = store;
+  if (store.roster) { try { S.roster = await store.roster(); } catch (e) { console.warn(e); } }
   store.escucha(aplicar);
   render();
 })();

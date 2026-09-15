@@ -3,19 +3,34 @@
 Calendario para programar las visitas de inspección, con vistas de **mes,
 semana y día**. Cada visita registra:
 
-**entidad · fecha · hora · personas que harán la inspección · resultado ·
+**entidad · fecha · hora · personas que harán la inspección · estado ·
 observaciones**
 
-El resultado tiene tres estados: *sin registrar* (solo programada),
-**inspección exitosa** y **se negó a la inspección**, y tiñe la visita en el
-calendario (azul, verde y rojo).
+El estado tiene cuatro valores: **programada** (aún sin registrar),
+**inspección exitosa**, **se negó a la inspección** y **reprogramado**, y tiñe
+la visita en el calendario (azul, verde, rojo y ámbar). Las observaciones
+quedan libres para cualquier detalle.
 
 Dos paneles completan la vista:
 
 - **Personas** — se eligen una o varias y el calendario muestra solo sus
   inspecciones, en las cuatro vistas.
-- **Resultados** — la lista completa de inspecciones, filtrable por exitosas,
-  se negó o sin registrar, con el conteo de cada grupo.
+- **Resultados** — la lista completa de inspecciones, filtrable por programadas,
+  exitosas, se negó o reprogramadas, con el conteo de cada grupo.
+
+## Quién puede hacer qué
+
+| Rol | Alcance |
+|---|---|
+| **Cualquiera con el enlace** | Ver la agenda en las cuatro vistas, filtrar por persona y descargar el Excel. |
+| **Inspector** (correo en la tabla `inspectores`) | Cambiar el **estado** y las **observaciones** de las visitas donde figura asignado. Nada más: ni fecha, ni hora, ni entidad, ni las visitas de otros. |
+| **Editor** (correo en la tabla `editores`) | Programar, editar, reasignar y borrar cualquier visita. |
+
+La restricción no es solo de pantalla: está aplicada en la base de datos con
+políticas RLS y un disparador, de modo que tampoco puede saltarse desde fuera de
+la aplicación. El nombre registrado en `inspectores` debe coincidir exactamente
+con el que aparece en la visita; por eso conviene elegir los nombres desde las
+sugerencias del formulario.
 
 El botón **Excel** descarga lo que esté a la vista en un `.xlsx` (fecha, hora,
 entidad, personas, resultado y observaciones). El archivo se arma en el propio
