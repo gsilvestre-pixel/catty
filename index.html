@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Agenda de Inspecciones</title>
-<meta name="theme-color" content="#16506B">
+<meta name="theme-color" content="#C2521A">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Agenda">
@@ -1159,7 +1159,7 @@ function aplicarTema(id) {
   const t = TEMAS.some((x) => x.id === id) ? id : "sobrio";
   if (t === "sobrio") document.documentElement.removeAttribute("data-paleta");
   else document.documentElement.setAttribute("data-paleta", t);
-  try { localStorage.setItem("agenda-paleta", t); } catch (e) {}
+  try { localStorage.setItem("agenda-paleta-v2", t); } catch (e) {}
   $("#toggles-tema").innerHTML = TEMAS.map((x) =>
     '<button type="button" class="tog tema" data-tema="' + x.id + '" aria-pressed="' + (x.id === t) + '">'
     + '<span class="sw">' + x.tonos.map((c) => '<i style="background:' + c + '"></i>').join("") + "</span>"
@@ -1266,8 +1266,8 @@ document.addEventListener("keydown", (ev) => {
 
 /* ---------------------- arranque ---------------------- */
 (async function iniciar() {
-  let guardado = "sobrio";
-  try { guardado = localStorage.getItem("agenda-paleta") || "sobrio"; } catch (e) {}
+  let guardado = "mango";
+  try { guardado = localStorage.getItem("agenda-paleta-v2") || "mango"; } catch (e) {}
   aplicarTema(guardado);
   if (window.matchMedia("(max-width: 640px)").matches) S.vista = "agenda";
   sincronizarVistas();
