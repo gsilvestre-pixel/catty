@@ -183,8 +183,83 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
 .fila-r .quien{font-size:12.5px; color:var(--ink-3)}
 .fila-r .der{margin-left:auto; display:flex; gap:8px; align-items:center}
 .sin-filas{padding:22px 14px; color:var(--ink-3); font-size:13.5px; text-align:center}
+.solo-movil{display:none}
+
+/* menú de opciones en el celular */
+.menu{
+  position:fixed; top:56px; right:12px; z-index:40; background:var(--surface);
+  border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); padding:6px; min-width:216px;
+}
+.menu button{
+  display:block; width:100%; text-align:left; border:none; background:none; cursor:pointer;
+  padding:11px 12px; border-radius:8px; font-size:15px; font-weight:600; color:var(--ink);
+}
+.menu button:hover, .menu button:focus-visible{background:var(--surface-2)}
+
+/* barra inferior y botón flotante (solo celular) */
+.nav-inf{
+  display:none; position:fixed; left:0; right:0; bottom:0; z-index:35;
+  background:var(--surface); border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.nav-inf button{
+  flex:1; border:none; background:none; cursor:pointer; padding:8px 4px 10px;
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  font-size:11.5px; font-weight:600; color:var(--ink-3);
+}
+.nav-inf svg{width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round}
+.nav-inf svg circle[cx="4"]{fill:currentColor; stroke:none}
+.nav-inf button[aria-pressed="true"]{color:var(--accent)}
+.fab{
+  display:none; position:fixed; right:16px; bottom:76px; z-index:36;
+  width:56px; height:56px; border-radius:50%; border:none; cursor:pointer;
+  background:var(--accent); color:#fff; font-size:30px; line-height:1; box-shadow:0 4px 14px rgba(19,27,32,.28);
+}
+
+/* vista de agenda: una lista simple, legible en pantalla chica */
+.agenda{margin-top:14px}
+.dia-cab{
+  display:flex; align-items:baseline; gap:8px; padding:14px 2px 7px;
+  font-size:12px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-3); font-weight:600;
+}
+.dia-cab b{font-size:13.5px; color:var(--ink); letter-spacing:0; text-transform:none}
+.dia-cab.hoy b{color:var(--hoy)}
+.ag-item{
+  display:flex; gap:12px; align-items:flex-start; width:100%; text-align:left; cursor:pointer;
+  background:var(--surface); border:1px solid var(--line); border-radius:10px;
+  padding:12px 13px; margin-bottom:8px; border-left:4px solid var(--accent);
+}
+.ag-item:hover{background:var(--surface-2)}
+.ag-item.ok{border-left-color:var(--ok)}
+.ag-item.mal{border-left-color:var(--mal)}
+.ag-hora{font-family:var(--mono); font-size:13.5px; font-weight:500; color:var(--ink-2); min-width:46px; padding-top:1px}
+.ag-cuerpo{flex:1; min-width:0}
+.ag-cuerpo b{display:block; font-size:15px; line-height:1.3}
+.ag-cuerpo small{display:block; color:var(--ink-3); font-size:13px; margin-top:2px}
+.ag-item .chip{flex:none; align-self:center}
+.ag-vacio{padding:30px 16px; text-align:center; color:var(--ink-3)}
+.mas-ancho{width:100%; margin:4px 0 10px; border:1px dashed var(--line); background:none; color:var(--ink-2);
+  border-radius:9px; padding:10px; font-size:13.5px; font-weight:600; cursor:pointer}
+.mas-ancho:hover{background:var(--surface-2)}
+
 .pie{padding:18px 0 0; font-size:12.5px; color:var(--ink-3); display:flex; gap:14px; flex-wrap:wrap}
 
+@media (max-width:640px){
+  .solo-movil{display:inline-flex}
+  .nav-inf{display:flex}
+  .fab{display:flex; align-items:center; justify-content:center}
+  main{padding-bottom:104px}  /* el contenido pasa por debajo del botón flotante */
+  body{padding-bottom:64px}
+  /* lo que se movió al menú ⋯ o a la barra inferior */
+  .vistas, #btn-hoy, .flechas, #btn-personas, #btn-excel, #btn-edicion, #btn-nueva{display:none !important}
+  .topbar .wrap{flex-wrap:nowrap; gap:8px}
+  .marca{width:auto; margin-right:auto}
+  .marca .sub{display:none}
+  .marca h1{font-size:18px}
+  .lienzo{margin-top:12px}
+  #leyenda{padding-bottom:6px}
+  .pie{padding-top:14px; font-size:12px}
+}
 @media (max-width:760px){
   .wrap{padding-inline:12px}
   .topbar .wrap{gap:7px; padding-block:9px}
@@ -229,10 +304,18 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
     </div>
     <button class="btn" id="btn-personas" aria-expanded="false">Personas</button>
     <button class="btn" id="btn-excel" title="Descargar la agenda en Excel">Excel</button>
+    <button class="btn solo-movil" id="btn-mas" aria-expanded="false" aria-label="Más opciones">⋯</button>
     <button class="btn" id="btn-edicion">Activar edición</button>
     <button class="btn primario" id="btn-nueva">+ Visita</button>
   </div>
 </header>
+
+<div class="menu" id="menu-mas" hidden>
+  <button type="button" data-hace="btn-hoy">Ir a hoy</button>
+  <button type="button" data-hace="btn-personas">Filtrar por persona</button>
+  <button type="button" data-hace="btn-excel">Descargar Excel</button>
+  <button type="button" data-hace="btn-edicion" id="m-edicion">Activar edición</button>
+</div>
 
 <main class="wrap">
   <section class="panel" id="panel-personas" hidden aria-label="Filtrar por persona">
@@ -249,6 +332,17 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
   </div>
   <p class="pie"><span id="pie-fuente">—</span><span id="pie-cuenta"></span></p>
 </main>
+
+<button class="fab" id="fab" hidden aria-label="Programar visita">+</button>
+
+<nav class="nav-inf" id="nav-inf" aria-label="Secciones">
+  <button type="button" data-vista="agenda" aria-pressed="true">
+    <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="5" r="1.4"/><circle cx="4" cy="10" r="1.4"/><circle cx="4" cy="15" r="1.4"/><path d="M8 5h9M8 10h9M8 15h9"/></svg>Agenda</button>
+  <button type="button" data-vista="mes" aria-pressed="false">
+    <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.5" y="4" width="15" height="13" rx="2"/><path d="M2.5 8h15M7 2.5v3M13 2.5v3"/></svg>Mes</button>
+  <button type="button" data-vista="resultados" aria-pressed="false">
+    <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><path d="M6.5 10.2l2.4 2.4 4.6-4.9"/></svg>Resultados</button>
+</nav>
 
 <datalist id="lista-entidades"></datalist>
 <datalist id="lista-personas"></datalist>
@@ -422,7 +516,7 @@ const EJEMPLO = ejemplo();
 const S = {
   reales: [], visitas: EJEMPLO, ejemplo: true,
   store: null, edicion: false,
-  vista: "mes", cursor: hoyISO(), personas: [], filtroRes: "", hoy: hoyISO()
+  vista: "mes", cursor: hoyISO(), personas: [], filtroRes: "", verPasadas: false, hoy: hoyISO()
 };
 
 function aplicar(filas) {
@@ -448,11 +542,13 @@ const entidades = () => Array.from(new Set(S.visitas.map((v) => v.entidad).filte
 /* ---------------------- render ---------------------- */
 function render() {
   const evs = visibles();
-  const calendario = S.vista !== "resultados";
+  const calendario = S.vista === "mes" || S.vista === "semana" || S.vista === "dia";
   $("#rotulo").textContent = rotulo().replace(/^./, (c) => c.toUpperCase());
   $("#btn-edicion").textContent = S.edicion ? "Edición activa · salir" : "Activar edición";
   $("#btn-edicion").classList.toggle("activo", S.edicion);
   $("#btn-nueva").hidden = !S.edicion;
+  $("#fab").hidden = !S.edicion;
+  $("#m-edicion").textContent = S.edicion ? "Salir de edición" : "Activar edición";
   $("#btn-hoy").hidden = !calendario;
   $(".flechas").hidden = !calendario;
 
@@ -468,6 +564,7 @@ function render() {
 
   renderAviso();
   if (S.vista === "mes") renderMes(evs);
+  else if (S.vista === "agenda") renderAgenda(evs);
   else if (S.vista === "resultados") renderResultados(evs);
   else renderTiempo(evs, S.vista === "semana" ? Array.from({ length: 7 }, (_, i) => suma(lunes(S.cursor), i)) : [S.cursor]);
   $("#leyenda").hidden = !calendario;
@@ -475,6 +572,43 @@ function render() {
   $("#pie-fuente").textContent = "Datos: " + (S.store ? S.store.etiqueta : "cargando…");
   $("#pie-cuenta").textContent = evs.length + (evs.length === 1 ? " visita" : " visitas")
     + (S.personas.length ? " de " + S.personas.join(", ") : "") + " en total";
+}
+
+/* Vista de lista: la más legible en el celular — sin rejilla horaria vacía. */
+function renderAgenda(evs) {
+  const pasadas = evs.filter((v) => v.fecha < S.hoy);
+  const lista = S.verPasadas ? evs.slice() : evs.filter((v) => v.fecha >= S.hoy);
+  const etiqueta = (f) => {
+    const d = aDate(f);
+    if (f === S.hoy) return "<b>Hoy</b><span>" + DIA[d.getDay()] + " " + d.getDate() + " " + MES[d.getMonth()].slice(0, 3) + "</span>";
+    if (f === suma(S.hoy, 1)) return "<b>Mañana</b><span>" + d.getDate() + " " + MES[d.getMonth()].slice(0, 3) + "</span>";
+    return "<b>" + DIA[d.getDay()] + " " + d.getDate() + "</b><span>" + MES[d.getMonth()] + "</span>";
+  };
+  let html = pasadas.length
+    ? '<button type="button" class="mas-ancho" id="mas-pasadas">' + (S.verPasadas ? "Ocultar las anteriores" : "Ver " + pasadas.length + (pasadas.length === 1 ? " visita anterior" : " visitas anteriores")) + "</button>"
+    : "";
+  if (!lista.length) {
+    html += '<p class="ag-vacio">' + (evs.length ? "No hay visitas de hoy en adelante." : "Todavía no hay visitas programadas.") + "</p>";
+  } else {
+    let dia = null;
+    lista.forEach((v) => {
+      if (v.fecha !== dia) {
+        dia = v.fecha;
+        html += '<div class="dia-cab' + (dia === S.hoy ? " hoy" : "") + '">' + etiqueta(dia) + "</div>";
+      }
+      const gente = listaP(v.personas);
+      html += '<button type="button" class="ag-item ' + claseRes(v) + '" data-id="' + v.id + '">'
+        + '<span class="ag-hora">' + hhmm(v.hora) + "</span>"
+        + '<span class="ag-cuerpo"><b>' + esc(v.entidad) + "</b>"
+        + (gente.length ? "<small>" + esc(gente.join(", ")) + "</small>" : '<small>Sin personas asignadas</small>')
+        + (v.observaciones ? "<small>" + esc(v.observaciones) + "</small>" : "")
+        + "</span>"
+        + (v.resultado ? chipRes(v) : "") + "</button>";
+    });
+  }
+  const c = $("#lienzo");
+  c.className = "agenda";
+  c.innerHTML = html;
 }
 
 function renderResultados(evs) {
@@ -500,6 +634,7 @@ function renderResultados(evs) {
 }
 
 function rotulo() {
+  if (S.vista === "agenda") return S.verPasadas ? "Todas las visitas" : "Próximas visitas";
   if (S.vista === "resultados") return "Resultados de las inspecciones";
   const d = aDate(S.cursor);
   if (S.vista === "mes") return MES[d.getMonth()] + " " + d.getFullYear();
@@ -693,6 +828,7 @@ $("#f-eliminar").addEventListener("click", async () => {
 $("#lienzo").addEventListener("click", (ev) => {
   const ir = ev.target.closest("[data-ir]");
   if (ir) { S.cursor = ir.dataset.ir; S.vista = "dia"; sincronizarVistas(); render(); return; }
+  if (ev.target.closest("#mas-pasadas")) { S.verPasadas = !S.verPasadas; return render(); }
   const res = ev.target.closest("[data-res]");
   if (res) { S.filtroRes = res.dataset.res; return render(); }
   const b = ev.target.closest("[data-id]");
@@ -859,7 +995,30 @@ $("#panel-personas").addEventListener("click", (ev) => {
 });
 
 /* barra superior */
-function sincronizarVistas() { $$(".vistas button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.vista === S.vista))); }
+function sincronizarVistas() {
+  $$(".vistas button, .nav-inf button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.vista === S.vista)));
+}
+$$(".nav-inf button").forEach((b) => b.addEventListener("click", () => { S.vista = b.dataset.vista; sincronizarVistas(); render(); }));
+$("#fab").addEventListener("click", () => $("#btn-nueva").click());
+$("#btn-mas").addEventListener("click", (ev) => {
+  ev.stopPropagation();
+  const m = $("#menu-mas");
+  m.hidden = !m.hidden;
+  $("#btn-mas").setAttribute("aria-expanded", String(!m.hidden));
+});
+$("#menu-mas").addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-hace]");
+  if (!b) return;
+  $("#menu-mas").hidden = true;
+  $("#btn-mas").setAttribute("aria-expanded", "false");
+  $("#" + b.dataset.hace).click();
+});
+document.addEventListener("click", (ev) => {
+  if (!$("#menu-mas").hidden && !ev.target.closest("#menu-mas, #btn-mas")) {
+    $("#menu-mas").hidden = true;
+    $("#btn-mas").setAttribute("aria-expanded", "false");
+  }
+});
 $$(".vistas button").forEach((b) => b.addEventListener("click", () => { S.vista = b.dataset.vista; sincronizarVistas(); render(); }));
 $("#btn-hoy").addEventListener("click", () => { S.cursor = hoyISO(); render(); });
 $("#btn-ant").addEventListener("click", () => { S.cursor = S.vista === "mes" ? sumaMes(S.cursor, -1) : suma(S.cursor, S.vista === "semana" ? -7 : -1); render(); });
@@ -893,7 +1052,8 @@ document.addEventListener("keydown", (ev) => {
 
 /* ---------------------- arranque ---------------------- */
 (async function iniciar() {
-  if (window.matchMedia("(max-width: 640px)").matches) { S.vista = "dia"; sincronizarVistas(); }
+  if (window.matchMedia("(max-width: 640px)").matches) S.vista = "agenda";
+  sincronizarVistas();
   render();
   let store = null;
   if (CONFIG.supabase.url && CONFIG.supabase.anonKey) {
