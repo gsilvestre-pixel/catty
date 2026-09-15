@@ -26,12 +26,67 @@
   --ok:#1C7A52; --ok-soft:#DEF0E6;
   --mal:#A5382C; --mal-soft:#F8E4E0;
   --rep:#8A5A12; --rep-soft:#F6EBD5;
+  --neutro:#16506B; --neutro-soft:#E0EBF1;   /* "programada" */
+  --fab:var(--accent);
   --shadow:0 1px 2px rgba(19,27,32,.06), 0 8px 24px rgba(19,27,32,.07);
   --radius:10px; --fila:52px;
   --mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
   --sans:"Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
   --display:"Archivo", "Source Sans 3", system-ui, sans-serif;
 }
+/* ---------- Temas elegibles ----------------------------------------
+   Todos son claros y todos pasan el contraste mínimo de lectura: los
+   tonos de texto se oscurecieron hasta 4.6:1 sobre su propio fondo. */
+:root[data-paleta="citrico"]{
+  /* Lemon Icing 11-0515, Abundant Green 18-6026, Flame 17-1462 TCX */
+  --ground:#F6EBC8; --surface:#FFFDF7; --surface-2:#FBF5E4; --surface-3:#ECE6D6;
+  --line:#E2D4AC; --line-soft:#EDE1BE;
+  --ink:#1B2A20; --ink-2:#46574C; --ink-3:#5F7168;
+  --accent:#006339; --accent-ink:#00502E; --accent-soft:#DCEBE2;
+  --hoy:#C4401C; --hoy-soft:#FDEBE4;
+  --ok:#006339; --ok-soft:#DCEBE2;
+  --mal:#B93A18; --mal-soft:#FDEBE4;
+  --rep:#7E620F; --rep-soft:#F6E7BE;
+  --neutro:#55665C; --neutro-soft:#ECE6D6;
+  --fab:linear-gradient(135deg,#F2552C,#F79A2B);
+}
+:root[data-paleta="coral"]{
+  --ground:#FFF4F0; --surface:#FFFFFF; --surface-2:#FFF9F7; --surface-3:#FBE7E0;
+  --line:#F2D8D0; --line-soft:#F8E7E1;
+  --ink:#241A1C; --ink-2:#5B4A47; --ink-3:#7A6560;
+  --accent:#D4385A; --accent-ink:#A82A46; --accent-soft:#FDE6EB;
+  --hoy:#B85A0E; --hoy-soft:#FCEBDC;
+  --ok:#0D7766; --ok-soft:#DCF2EE;
+  --mal:#C1362F; --mal-soft:#FBE5E3;
+  --rep:#846511; --rep-soft:#F7ECD2;
+  --neutro:#6B5E5B; --neutro-soft:#F0E6E2;
+  --fab:linear-gradient(135deg,#FF5A6E,#FF9245);
+}
+:root[data-paleta="indigo"]{
+  --ground:#F5F4FF; --surface:#FFFFFF; --surface-2:#FAF9FF; --surface-3:#EAE9F8;
+  --line:#DDD9F5; --line-soft:#ECEAFA;
+  --ink:#1B1A2E; --ink-2:#4C4B66; --ink-3:#6B6A85;
+  --accent:#4F46E5; --accent-ink:#3B34B8; --accent-soft:#E7E5FD;
+  --hoy:#C2185B; --hoy-soft:#FBE4EE;
+  --ok:#067957; --ok-soft:#DCF2EA;
+  --mal:#C0284A; --mal-soft:#FBE3E8;
+  --rep:#755AA1; --rep-soft:#EFE8F9;
+  --neutro:#5B5A73; --neutro-soft:#EAE9F4;
+  --fab:linear-gradient(135deg,#6D5BFF,#A855F7);
+}
+:root[data-paleta="mango"]{
+  --ground:#FFF9EF; --surface:#FFFFFF; --surface-2:#FFFCF6; --surface-3:#FAEBD8;
+  --line:#F0DCC0; --line-soft:#F7EADA;
+  --ink:#26201A; --ink-2:#5C5145; --ink-3:#7B6B58;
+  --accent:#C2521A; --accent-ink:#9B4014; --accent-soft:#FCE9DC;
+  --hoy:#B0246A; --hoy-soft:#FBE4EF;
+  --ok:#107856; --ok-soft:#DDF2EA;
+  --mal:#C0392B; --mal-soft:#FBE6E3;
+  --rep:#846511; --rep-soft:#F7ECD2;
+  --neutro:#6E6455; --neutro-soft:#F0E9DC;
+  --fab:linear-gradient(135deg,#FF8A00,#FF3D7F);
+}
+
 *{box-sizing:border-box}
 [hidden]{display:none !important}
 body{margin:0; background:var(--ground); color:var(--ink); font-family:var(--sans); font-size:15px; line-height:1.45; -webkit-font-smoothing:antialiased}
@@ -84,7 +139,7 @@ main{padding-bottom:56px}
 .celda.hoy .num{background:var(--hoy); color:#fff; font-weight:500}
 .ev{
   display:block; width:100%; text-align:left; border:none; cursor:pointer;
-  background:var(--accent-soft); color:var(--accent-ink); border-left:3px solid var(--accent);
+  background:var(--neutro-soft); color:var(--neutro); border-left:3px solid var(--neutro);
   border-radius:4px; padding:2px 5px; font-size:11.5px; line-height:1.35;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
@@ -114,8 +169,8 @@ main{padding-bottom:56px}
 .col-dia.finde{background:var(--surface-2)}
 .bloque{
   position:absolute; left:2px; right:2px; border-radius:6px; padding:3px 6px; cursor:pointer;
-  background:var(--accent-soft); border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);
-  border-left:3px solid var(--accent); color:var(--accent-ink); overflow:hidden; text-align:left;
+  background:var(--neutro-soft); border:1px solid color-mix(in srgb, var(--neutro) 35%, transparent);
+  border-left:3px solid var(--neutro); color:var(--neutro); overflow:hidden; text-align:left;
 }
 .bloque:hover{filter:brightness(.97)}
 .bloque.ok{background:var(--ok-soft); color:var(--ok); border-color:color-mix(in srgb, var(--ok) 35%, transparent); border-left-color:var(--ok)}
@@ -158,7 +213,7 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
 .leyenda{display:flex; gap:16px; flex-wrap:wrap; font-size:12.5px; color:var(--ink-2); padding:10px 2px 0}
 .leyenda span{display:inline-flex; align-items:center; gap:6px}
 .leyenda i{width:10px; height:10px; border-radius:3px; display:inline-block}
-.leyenda i.prog{background:var(--accent)} .leyenda i.ok{background:var(--ok)} .leyenda i.mal{background:var(--mal)} .leyenda i.rep{background:var(--rep)}
+.leyenda i.prog{background:var(--neutro)} .leyenda i.ok{background:var(--ok)} .leyenda i.mal{background:var(--mal)} .leyenda i.rep{background:var(--rep)}
 
 .panel{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:12px 14px; margin-top:14px}
 .panel h2{font-size:12px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-3); font-weight:600; margin-bottom:9px}
@@ -174,7 +229,7 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
 
 .chip{display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600; padding:3px 9px; border-radius:99px; border:1px solid transparent; white-space:nowrap}
 .chip::before{content:""; width:6px; height:6px; border-radius:50%; background:currentColor}
-.chip.prog{background:var(--accent-soft); color:var(--accent-ink); border-color:color-mix(in srgb, var(--accent) 30%, transparent)}
+.chip.prog{background:var(--neutro-soft); color:var(--neutro); border-color:color-mix(in srgb, var(--neutro) 32%, transparent)}
 .chip.ok{background:var(--ok-soft); color:var(--ok); border-color:color-mix(in srgb, var(--ok) 30%, transparent)}
 .chip.mal{background:var(--mal-soft); color:var(--mal); border-color:color-mix(in srgb, var(--mal) 30%, transparent)}
 .chip.rep{background:var(--rep-soft); color:var(--rep); border-color:color-mix(in srgb, var(--rep) 30%, transparent)}
@@ -218,7 +273,7 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
 .fab{
   display:none; position:fixed; right:16px; bottom:76px; z-index:36;
   width:56px; height:56px; border-radius:50%; border:none; cursor:pointer;
-  background:var(--accent); color:#fff; font-size:30px; line-height:1; box-shadow:0 4px 14px rgba(19,27,32,.28);
+  background:var(--fab); color:#fff; font-size:30px; line-height:1; box-shadow:0 4px 14px rgba(19,27,32,.28);
 }
 
 /* vista de agenda: una lista simple, legible en pantalla chica */
@@ -228,10 +283,10 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
   font-size:12px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-3); font-weight:600;
 }
 .dia-cab b{font-size:13.5px; color:var(--ink); letter-spacing:0; text-transform:none}
-.dia-cab.hoy b{color:var(--hoy)}
+.dia-cab.hoy b{background:var(--hoy); color:#fff; padding:2px 10px; border-radius:99px; font-size:12.5px}
 .ag-item{
   background:var(--surface); border:1px solid var(--line); border-radius:10px;
-  margin-bottom:8px; border-left:4px solid var(--accent); overflow:hidden;
+  margin-bottom:8px; border-left:4px solid var(--neutro); overflow:hidden;
 }
 .ag-abrir{
   display:flex; gap:12px; align-items:flex-start; width:100%; text-align:left; cursor:pointer;
@@ -266,40 +321,25 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
   display:block; margin:0; padding:10px 12px; border-radius:9px;
   background:var(--accent-soft); color:var(--accent-ink); font-size:13px; line-height:1.4;
 }
+.sw{display:inline-flex; gap:3px; margin-right:8px; vertical-align:-2px}
+.sw i{width:11px; height:11px; border-radius:3px; display:inline-block}
+.tog.tema[aria-pressed="true"]{background:var(--ink); border-color:var(--ink); color:var(--surface)}
+.emojis{display:flex; flex-wrap:wrap; gap:4px; margin-top:6px}
+.emojis button{
+  border:1px solid var(--line); background:var(--surface); border-radius:8px;
+  font-size:18px; line-height:1; padding:6px 8px; cursor:pointer;
+}
+.emojis button:hover{background:var(--surface-2); border-color:var(--ink-3)}
 .pie{padding:18px 0 0; font-size:12.5px; color:var(--ink-3); display:flex; gap:14px; flex-wrap:wrap}
 
 @media (max-width:640px){
-  /* ---- Paleta del celular ----------------------------------------
-     Lemon Icing 11-0515 TCX (#F6EBC8) como fondo, Abundant Green
-     18-6026 TCX (#006339) como color de marca y de inspección exitosa,
-     y Flame 17-1462 TCX (#F2552C) en el botón de programar y en la
-     marca de hoy. Los tonos de texto se oscurecieron lo necesario
-     para que todo pase el contraste mínimo de lectura.            */
-  :root{
-    --ground:#F6EBC8; --surface:#FFFDF7; --surface-2:#FBF5E4; --surface-3:#ECE6D6;
-    --line:#E2D4AC; --line-soft:#EDE1BE;
-    --ink:#1B2A20; --ink-2:#46574C; --ink-3:#5F7168;
-    --accent:#006339; --accent-ink:#00502E; --accent-soft:#DCEBE2;
-    --hoy:#C4401C; --hoy-soft:#FDEBE4;
-    --ok:#006339; --ok-soft:#DCEBE2;
-    --mal:#B93A18; --mal-soft:#FDEBE4;
-    --rep:#7E620F; --rep-soft:#F6E7BE;
-    --neutro:#55665C; --neutro-soft:#ECE6D6;
-  }
-  /* "Programada" deja de usar el color de marca para no confundirse con
-     el verde de "inspección exitosa": pasa a un gris pizarra. */
-  .chip.prog{background:var(--neutro-soft); color:var(--neutro); border-color:color-mix(in srgb, var(--neutro) 32%, transparent)}
-  .ev{background:var(--neutro-soft); color:var(--neutro); border-left-color:var(--neutro)}
-  .ag-item{border-left-color:var(--neutro)}
-  .leyenda i.prog{background:var(--neutro)}
-  .fab{background:#F2552C}   /* Flame puro: solo lleva el signo +, sin texto pequeño */
   .solo-movil{display:inline-flex}
   .nav-inf{display:flex}
   .fab{display:flex; align-items:center; justify-content:center}
   main{padding-bottom:104px}  /* el contenido pasa por debajo del botón flotante */
   body{padding-bottom:64px}
   /* lo que se movió al menú ⋯ o a la barra inferior */
-  .vistas, #btn-hoy, .flechas, #btn-personas, #btn-excel, #btn-edicion, #btn-nueva{display:none !important}
+  .vistas, #btn-hoy, .flechas, #btn-personas, #btn-excel, #btn-tema, #btn-edicion, #btn-nueva{display:none !important}
   .topbar .wrap{flex-wrap:nowrap; gap:8px}
   .marca{width:auto; margin-right:auto}
   .marca .sub{display:none}
@@ -352,6 +392,7 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
     </div>
     <button class="btn" id="btn-personas" aria-expanded="false">Personas</button>
     <button class="btn" id="btn-excel" title="Descargar la agenda en Excel">Excel</button>
+    <button class="btn" id="btn-tema" aria-expanded="false">Colores</button>
     <button class="btn solo-movil" id="btn-mas" aria-expanded="false" aria-label="Más opciones">⋯</button>
     <button class="btn" id="btn-edicion">Activar edición</button>
     <button class="btn primario" id="btn-nueva">+ Visita</button>
@@ -362,6 +403,7 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
   <button type="button" data-hace="btn-hoy">Ir a hoy</button>
   <button type="button" data-hace="btn-personas">Filtrar por persona</button>
   <button type="button" data-hace="btn-excel">Descargar Excel</button>
+  <button type="button" data-hace="btn-tema">Colores de la app</button>
   <button type="button" data-hace="btn-edicion" id="m-edicion">Activar edición</button>
 </div>
 
@@ -370,6 +412,11 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
     <h2>Ver el calendario de</h2>
     <div class="toggles" id="toggles-personas"></div>
     <p class="ayuda">Elige una o varias personas y el calendario mostrará solo sus inspecciones. El filtro se mantiene en las cuatro vistas.</p>
+  </section>
+  <section class="panel" id="panel-tema" hidden aria-label="Colores de la aplicación">
+    <h2>Colores de la aplicación</h2>
+    <div class="toggles" id="toggles-tema"></div>
+    <p class="ayuda">La elección se guarda en este dispositivo: cada persona del equipo puede tener el suyo sin afectar a los demás.</p>
   </section>
   <div id="aviso"></div>
   <section class="lienzo" id="lienzo"></section>
@@ -430,7 +477,13 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
       </div>
       <div class="campo">
         <label for="f-obs">Observaciones</label>
-        <textarea id="f-obs" maxlength="500" placeholder="Opcional"></textarea>
+        <textarea id="f-obs" maxlength="500" placeholder="Opcional — puedes usar emojis 🙂"></textarea>
+        <div class="emojis" id="emojis" aria-label="Emojis frecuentes">
+          <button type="button">✅</button><button type="button">❌</button><button type="button">🔁</button>
+          <button type="button">⚠️</button><button type="button">📄</button><button type="button">📷</button>
+          <button type="button">📞</button><button type="button">🕐</button><button type="button">📍</button>
+          <button type="button">🚧</button><button type="button">👍</button><button type="button">🙂</button>
+        </div>
       </div>
     </div>
     <footer>
@@ -900,6 +953,7 @@ function abrir(v, fecha, hora) {
   $("#form").querySelector('button[type="submit"]').hidden = ro;
   $("#f-cancelar").textContent = ro ? "Cerrar" : "Cancelar";
   $("#aviso-rol").hidden = !soloEstado;
+  $("#emojis").hidden = ro;
   $("#dlg").showModal();
 }
 $("#f-cancelar").addEventListener("click", () => $("#dlg").close());
@@ -1093,6 +1147,48 @@ async function descargarExcel() {
 }
 $("#btn-excel").addEventListener("click", descargarExcel);
 
+/* colores de la aplicación (se recuerdan en el dispositivo) */
+const TEMAS = [
+  { id: "sobrio",  nombre: "Sobrio",  tonos: ["#16506B", "#1C7A52", "#B4551F"] },
+  { id: "coral",   nombre: "Coral",   tonos: ["#D4385A", "#FF9245", "#0D7766"] },
+  { id: "indigo",  nombre: "Índigo",  tonos: ["#4F46E5", "#A855F7", "#C2185B"] },
+  { id: "mango",   nombre: "Mango",   tonos: ["#FF8A00", "#FF3D7F", "#107856"] },
+  { id: "citrico", nombre: "Cítrico", tonos: ["#F6EBC8", "#006339", "#F2552C"] }
+];
+function aplicarTema(id) {
+  const t = TEMAS.some((x) => x.id === id) ? id : "sobrio";
+  if (t === "sobrio") document.documentElement.removeAttribute("data-paleta");
+  else document.documentElement.setAttribute("data-paleta", t);
+  try { localStorage.setItem("agenda-paleta", t); } catch (e) {}
+  $("#toggles-tema").innerHTML = TEMAS.map((x) =>
+    '<button type="button" class="tog tema" data-tema="' + x.id + '" aria-pressed="' + (x.id === t) + '">'
+    + '<span class="sw">' + x.tonos.map((c) => '<i style="background:' + c + '"></i>').join("") + "</span>"
+    + x.nombre + "</button>").join("");
+}
+$("#btn-tema").addEventListener("click", () => {
+  const p = $("#panel-tema");
+  p.hidden = !p.hidden;
+  $("#btn-tema").setAttribute("aria-expanded", String(!p.hidden));
+  if (!p.hidden) $("#panel-personas").hidden = true;
+});
+$("#panel-tema").addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-tema]");
+  if (b) aplicarTema(b.dataset.tema);
+});
+
+/* emojis en las observaciones */
+$("#emojis").addEventListener("click", (ev) => {
+  const b = ev.target.closest("button");
+  const t = $("#f-obs");
+  if (!b || t.readOnly) return;
+  const i = t.selectionStart != null ? t.selectionStart : t.value.length;
+  const j = t.selectionEnd != null ? t.selectionEnd : i;
+  t.value = t.value.slice(0, i) + b.textContent + t.value.slice(j);
+  t.focus();
+  const n = i + b.textContent.length;
+  t.setSelectionRange(n, n);
+});
+
 /* panel de personas y filtro de resultados */
 $("#btn-personas").addEventListener("click", () => {
   const p = $("#panel-personas");
@@ -1170,6 +1266,9 @@ document.addEventListener("keydown", (ev) => {
 
 /* ---------------------- arranque ---------------------- */
 (async function iniciar() {
+  let guardado = "sobrio";
+  try { guardado = localStorage.getItem("agenda-paleta") || "sobrio"; } catch (e) {}
+  aplicarTema(guardado);
   if (window.matchMedia("(max-width: 640px)").matches) S.vista = "agenda";
   sincronizarVistas();
   render();

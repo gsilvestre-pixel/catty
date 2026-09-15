@@ -47,6 +47,8 @@ La aplicación es un solo archivo (`index.html`) sin proceso de compilación.
 | Registrar el resultado | Abrir la visita y elegir en **Resultado de la inspección**. |
 | Ver el calendario de una persona | Botón **Personas** y marcar uno o varios nombres. |
 | Revisar exitosas o negadas | Vista **Resultados** y sus filtros. |
+| Cambiar los colores | Botón **Colores** (en el celular, menú **⋯**): cinco paletas claras; la elección se guarda en el dispositivo. |
+| Escribir con emojis | Fila de emojis frecuentes bajo el campo de observaciones; el teclado del celular también sirve. |
 | Cambiar de vista | Botones **Mes / Semana / Día / Resultados**, o las teclas `m`, `s`, `d`. |
 | Navegar | **‹ ›** avanza mes, semana o día según la vista; **Hoy** vuelve a la fecha actual. |
 | Ir al detalle de un día | Clic en el número del día. |
