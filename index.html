@@ -269,6 +269,30 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
 .pie{padding:18px 0 0; font-size:12.5px; color:var(--ink-3); display:flex; gap:14px; flex-wrap:wrap}
 
 @media (max-width:640px){
+  /* ---- Paleta del celular ----------------------------------------
+     Lemon Icing 11-0515 TCX (#F6EBC8) como fondo, Abundant Green
+     18-6026 TCX (#006339) como color de marca y de inspección exitosa,
+     y Flame 17-1462 TCX (#F2552C) en el botón de programar y en la
+     marca de hoy. Los tonos de texto se oscurecieron lo necesario
+     para que todo pase el contraste mínimo de lectura.            */
+  :root{
+    --ground:#F6EBC8; --surface:#FFFDF7; --surface-2:#FBF5E4; --surface-3:#ECE6D6;
+    --line:#E2D4AC; --line-soft:#EDE1BE;
+    --ink:#1B2A20; --ink-2:#46574C; --ink-3:#5F7168;
+    --accent:#006339; --accent-ink:#00502E; --accent-soft:#DCEBE2;
+    --hoy:#C4401C; --hoy-soft:#FDEBE4;
+    --ok:#006339; --ok-soft:#DCEBE2;
+    --mal:#B93A18; --mal-soft:#FDEBE4;
+    --rep:#7E620F; --rep-soft:#F6E7BE;
+    --neutro:#55665C; --neutro-soft:#ECE6D6;
+  }
+  /* "Programada" deja de usar el color de marca para no confundirse con
+     el verde de "inspección exitosa": pasa a un gris pizarra. */
+  .chip.prog{background:var(--neutro-soft); color:var(--neutro); border-color:color-mix(in srgb, var(--neutro) 32%, transparent)}
+  .ev{background:var(--neutro-soft); color:var(--neutro); border-left-color:var(--neutro)}
+  .ag-item{border-left-color:var(--neutro)}
+  .leyenda i.prog{background:var(--neutro)}
+  .fab{background:#F2552C}   /* Flame puro: solo lleva el signo +, sin texto pequeño */
   .solo-movil{display:inline-flex}
   .nav-inf{display:flex}
   .fab{display:flex; align-items:center; justify-content:center}
