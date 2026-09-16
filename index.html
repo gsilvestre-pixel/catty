@@ -128,6 +128,10 @@ select, input[type="text"], input[type="date"], input[type="time"], textarea{
 main{padding-bottom:56px}
 .aviso{display:flex; gap:10px; align-items:center; padding:10px 14px; border-radius:var(--radius); border:1px solid var(--line); background:var(--surface-2); font-size:13.5px; color:var(--ink-2); margin-top:14px}
 .aviso b{color:var(--ink)}
+.aviso.nov{border-color:color-mix(in srgb, var(--accent) 45%, var(--line)); background:var(--accent-soft); color:var(--accent-ink); flex-wrap:wrap}
+.aviso.nov .btn{margin-left:0}
+.aviso.nov .btn:first-of-type{margin-left:auto}
+.ag-item.novedad{box-shadow:inset 3px 0 0 var(--accent), 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent)}
 .aviso.demo{border-color:color-mix(in srgb, var(--hoy) 45%, var(--line)); background:var(--hoy-soft); color:var(--hoy)}
 .aviso .btn{margin-left:auto}
 
@@ -436,6 +440,7 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
     <div class="toggles" id="toggles-tema"></div>
     <p class="ayuda">La elección se guarda en este dispositivo: cada persona del equipo puede tener el suyo sin afectar a los demás.</p>
   </section>
+  <div id="novedades"></div>
   <div id="aviso"></div>
   <section class="lienzo" id="lienzo"></section>
   <div class="leyenda" id="leyenda">
@@ -579,6 +584,8 @@ const lunes = (s) => suma(s, -(((aDate(s).getDay() + 6) % 7)));
 const minutos = (h) => { const [a, b] = String(h || "00:00").split(":").map(Number); return (a || 0) * 60 + (b || 0); };
 const hhmm = (h) => String(h || "").slice(0, 5);
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id" + Date.now() + Math.random().toString(16).slice(2));
+/* En Supabase las marcas las pone la base; aquí, el propio navegador. */
+const sellar = (o) => { const t = new Date().toISOString(); return { ...o, creado_en: o.creado_en || t, actualizado_en: t }; };
 const listaP = (v) => Array.isArray(v) ? v.filter(Boolean) : (v ? [String(v)] : []);
 
 function cargarScript(src) {
@@ -617,7 +624,7 @@ async function storeClaudeDb() {
         (e) => console.warn("db", e.code)
       );
     },
-    async guardar(o) { await db.doc("visitas/" + o.id).set(limpio(o)); },
+    async guardar(o) { await db.doc("visitas/" + o.id).set(limpio(sellar(o))); },
     async borrar(id) { await db.doc("visitas/" + id).delete(); },
     async probarEdicion() { try { await db.doc("meta/acceso").set({ ts: Date.now() }); return { rol: "editor" }; } catch (e) { return false; } }
   };
@@ -711,7 +718,7 @@ function storeLocal() {
   return {
     tipo: "local", etiqueta: "Este navegador (sin servidor)",
     escucha(cb) { alCambiar = cb; cb(cache.slice()); },
-    async guardar(o) { const i = cache.findIndex((x) => x.id === o.id); if (i >= 0) cache[i] = o; else cache.push(o); persistir(); alCambiar(cache.slice()); },
+    async guardar(o) { const v = sellar(o); const i = cache.findIndex((x) => x.id === v.id); if (i >= 0) cache[i] = v; else cache.push(v); persistir(); alCambiar(cache.slice()); },
     async borrar(id) { cache = cache.filter((x) => x.id !== id); persistir(); alCambiar(cache.slice()); },
     async probarEdicion() { return { rol: "editor" }; }
   };
@@ -723,7 +730,8 @@ const EJEMPLO = ejemplo();
 const S = {
   reales: [], visitas: EJEMPLO, ejemplo: true,
   store: null, edicion: false, rol: "lector", yo: "", roster: [],
-  vista: "mes", cursor: hoyISO(), personas: [], filtroRes: "", verPasadas: false, hoy: hoyISO()
+  vista: "mes", cursor: hoyISO(), personas: [], filtroRes: "", verPasadas: false, hoy: hoyISO(),
+  desde: null, soloNovedades: false
 };
 
 function aplicar(filas) {
@@ -733,6 +741,7 @@ function aplicar(filas) {
   render();
 }
 const visibles = () => S.visitas
+  .filter((v) => !S.soloNovedades || esNueva(v) || esCambiada(v))
   .filter((v) => !S.personas.length || listaP(v.personas).some((p) => S.personas.includes(p)))
   .sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora));
 /* Estado de la inspección; vacío significa que solo está programada. */
@@ -766,6 +775,12 @@ const personas = () => {
 };
 const entidades = () => Array.from(new Set(S.visitas.map((v) => v.entidad).filter(Boolean))).sort((a, b) => a.localeCompare(b, "es"));
 
+/* Novedades: lo creado o modificado desde la última vez que se abrió la
+   agenda en este dispositivo. */
+const esNueva = (v) => !!(S.desde && v.creado_en && v.creado_en > S.desde);
+const esCambiada = (v) => !!(S.desde && v.actualizado_en && v.actualizado_en > S.desde && !esNueva(v));
+const novedades = () => S.visitas.filter((v) => esNueva(v) || esCambiada(v));
+
 /* ---------------------- render ---------------------- */
 function render() {
   const evs = visibles();
@@ -790,6 +805,7 @@ function render() {
   $("#lista-entidades").innerHTML = entidades().map((e) => '<option value="' + esc(e) + '"></option>').join("");
 
   renderAviso();
+  renderNovedades();
   if (S.vista === "mes") renderMes(evs);
   else if (S.vista === "agenda") renderAgenda(evs);
   else if (S.vista === "resultados") renderResultados(evs);
@@ -826,7 +842,7 @@ function renderAgenda(evs) {
       const gente = listaP(v.personas);
       /* Si ya pasó la hora y falta el resultado, se marca desde la propia tarjeta. */
       const marcar = puedeEstado(v) && !S.ejemplo && !v.estado && v.fecha <= S.hoy;
-      html += '<div class="ag-item ' + claseRes(v) + '">'
+      html += '<div class="ag-item ' + claseRes(v) + (esNueva(v) || esCambiada(v) ? " novedad" : "") + '">'
         + '<button type="button" class="ag-abrir" data-id="' + v.id + '">'
         + '<span class="ag-hora">' + hhmm(v.hora) + "</span>"
         + '<span class="ag-cuerpo"><b>' + esc(v.entidad) + "</b>"
@@ -878,6 +894,25 @@ function rotulo() {
   if (S.vista === "dia") return DIA[d.getDay()] + " " + d.getDate() + " de " + MES[d.getMonth()];
   const l = aDate(lunes(S.cursor)), f = aDate(suma(lunes(S.cursor), 6));
   return l.getDate() + (l.getMonth() === f.getMonth() ? "" : " de " + MES[l.getMonth()]) + " – " + f.getDate() + " de " + MES[f.getMonth()] + " " + f.getFullYear();
+}
+
+function renderNovedades() {
+  const c = $("#novedades");
+  const n = S.ejemplo ? [] : novedades();
+  if (!n.length) { c.innerHTML = ""; S.soloNovedades = false; return; }
+  const nuevas = n.filter(esNueva).length, cambiadas = n.length - nuevas;
+  const partes = [];
+  if (nuevas) partes.push(nuevas === 1 ? "1 visita nueva" : nuevas + " visitas nuevas");
+  if (cambiadas) partes.push(cambiadas === 1 ? "1 actualizada" : cambiadas + " actualizadas");
+  c.innerHTML = '<div class="aviso nov"><span><b>' + partes.join(" y ") + "</b> desde tu última entrada.</span>"
+    + '<button class="btn chico" id="ver-novedades">' + (S.soloNovedades ? "Ver toda la agenda" : "Ver cuáles") + "</button>"
+    + '<button class="btn chico" id="visto-novedades">Marcar como visto</button></div>';
+  $("#ver-novedades").onclick = () => { S.soloNovedades = !S.soloNovedades; render(); };
+  $("#visto-novedades").onclick = () => {
+    S.desde = new Date().toISOString();
+    try { localStorage.setItem("agenda-visto", S.desde); } catch (e) {}
+    S.soloNovedades = false; render();
+  };
 }
 
 function renderAviso() {
@@ -1451,6 +1486,7 @@ document.addEventListener("keydown", (ev) => {
 
 /* ---------------------- arranque ---------------------- */
 (async function iniciar() {
+  try { S.desde = localStorage.getItem("agenda-visto") || null; } catch (e) {}
   let guardado = "mango";
   try { guardado = localStorage.getItem("agenda-paleta-v2") || "mango"; } catch (e) {}
   aplicarTema(guardado);
@@ -1467,6 +1503,8 @@ document.addEventListener("keydown", (ev) => {
   if (store.roster) { try { S.roster = await store.roster(); } catch (e) { console.warn(e); } }
   store.escucha(aplicar);
   render();
+  /* La próxima vez, "novedades" se cuenta desde este momento. */
+  setTimeout(() => { try { localStorage.setItem("agenda-visto", new Date().toISOString()); } catch (e) {} }, 4000);
   if (store.tipo === "supabase" && CONFIG.equipo.correo) {
     const { data } = await store.cliente.auth.getSession();
     if (!data || !data.session) abrirAcceso("equipo");
