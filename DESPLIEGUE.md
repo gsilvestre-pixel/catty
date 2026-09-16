@@ -103,6 +103,28 @@ republica solo.
 > se publica igual desde Cloudflare Pages, Netlify o Vercel (plan gratuito,
 > framework *None*, directorio de salida `/`).
 
+## Paso opcional — reservar la agenda al equipo
+
+Por defecto cualquiera con el enlace ve la agenda. Para que solo la vea el
+equipo, con **una clave compartida** y sin registrar correos uno por uno:
+
+1. **Authentication → Users → Add user → Create new user**
+   - *Email*: `equipo@jmasociados.pe` (no necesita existir como buzón)
+   - *Password*: la clave que repartirá al equipo
+   - *Auto Confirm User*: activado
+2. Ejecutar [`db/migracion-04-clave-del-equipo.sql`](db/migracion-04-clave-del-equipo.sql),
+   cambiando en el archivo el correo por el que acaba de crear.
+3. En [`config.js`](config.js), poner ese mismo correo:
+   `window.CONFIG_EQUIPO = { correo: "equipo@jmasociados.pe" };`
+
+Desde entonces, quien abra el enlace verá una pantalla pidiendo la clave. Los
+editores e inspectores entran como siempre, con su correo y su código, desde el
+enlace *Soy editor o inspector*.
+
+Para cambiar la clave: *Authentication → Users →* la cuenta compartida →
+*Reset password*. No hay que tocar la aplicación. Para volver a dejarla abierta,
+las tres líneas están al final del archivo de migración.
+
 ## Paso 3 — Uso en el celular
 
 El enlace funciona en el navegador del teléfono tal cual. Para que se vea como

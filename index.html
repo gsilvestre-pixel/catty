@@ -344,6 +344,10 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
   font-size:18px; line-height:1; padding:6px 8px; cursor:pointer;
 }
 .emojis button:hover{background:var(--surface-2); border-color:var(--ink-3)}
+.cambiar{
+  border:none; background:none; cursor:pointer; padding:4px 0; text-align:left;
+  font-size:13.5px; font-weight:600; color:var(--accent); text-decoration:underline;
+}
 .pie{padding:18px 0 0; font-size:12.5px; color:var(--ink-3); display:flex; gap:14px; flex-wrap:wrap}
 
 @media (max-width:640px){
@@ -463,15 +467,20 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
   <form method="dialog" id="form-acceso">
     <header><h2 id="acceso-titulo">Acceso</h2></header>
     <div class="cuerpo">
-      <p class="ayuda" id="acceso-ayuda">Te enviaremos un código a tu correo. Escríbelo <b>en este mismo dispositivo</b>: así la sesión queda aquí y no en otro equipo.</p>
-      <div class="campo">
+      <p class="ayuda" id="acceso-ayuda"></p>
+      <div class="campo" id="campo-clave" hidden>
+        <label for="a-clave">Clave del equipo</label>
+        <input type="password" id="a-clave" autocomplete="current-password" placeholder="La clave que les compartieron">
+      </div>
+      <div class="campo" id="campo-correo" hidden>
         <label for="a-correo">Correo autorizado</label>
-        <input type="email" id="a-correo" required autocomplete="email" placeholder="nombre@dominio.pe">
+        <input type="email" id="a-correo" autocomplete="email" placeholder="nombre@dominio.pe">
       </div>
       <div class="campo" id="campo-codigo" hidden>
         <label for="a-codigo">Código recibido</label>
         <input type="text" id="a-codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="6 dígitos">
       </div>
+      <button type="button" class="cambiar" id="cambiar-modo"></button>
     </div>
     <footer>
       <button type="button" class="btn" id="a-cancelar">Cancelar</button>
@@ -547,7 +556,8 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
 
 const CONFIG = {
   /* Los valores llegan de config.js (despliegue público sobre PostgreSQL). */
-  supabase: (window.CONFIG_SUPABASE || { url: "", anonKey: "" })
+  supabase: (window.CONFIG_SUPABASE || { url: "", anonKey: "" }),
+  equipo: (window.CONFIG_EQUIPO || { correo: "" })
 };
 
 const HORA_INI = 6, HORA_FIN = 21, FILA = 52;
@@ -669,6 +679,7 @@ async function storeSupabase(cfg) {
         console.warn("La base no tiene la columna «" + falta + "»; se guarda sin ella.");
       }
     },
+    async recargar() { if (alCambiar) alCambiar(await leer()); },
     /* Nombres del equipo registrado (la vista pública no expone correos). */
     async roster() {
       const { data } = await sb.from("inspectores_publicos").select("nombre");
@@ -684,6 +695,8 @@ async function storeSupabase(cfg) {
       if (eds && eds.length) return { rol: "editor" };
       const { data: ins } = await sb.from("inspectores").select("nombre");
       if (ins && ins.length) return { rol: "inspector", nombre: ins[0].nombre };
+      /* La cuenta compartida solo sirve para ver. */
+      if (CONFIG.equipo.correo && correo.toLowerCase() === CONFIG.equipo.correo.toLowerCase()) return "equipo";
       return false;
     }
   };
@@ -1236,35 +1249,78 @@ $("#btn-excel").addEventListener("click", descargarExcel);
    quien pide el acceso desde el celular y luego abre el correo en la
    computadora se queda sin sesión en el celular. Por eso el acceso se
    confirma con un código escrito aquí mismo.                            */
-let accesoPaso = 1;
-function abrirAcceso() {
-  accesoPaso = 1;
-  $("#acceso-titulo").textContent = "Acceso";
-  $("#campo-codigo").hidden = true;
-  $("#a-codigo").value = "";
-  $("#a-enviar").textContent = "Enviarme el código";
-  $("#acceso-ayuda").innerHTML = "Te enviaremos un código a tu correo. Escríbelo <b>en este mismo dispositivo</b>: así la sesión queda aquí y no en otro equipo.";
-  $("#dlg-acceso").showModal();
-  $("#a-correo").focus();
+let accesoPaso = 1;                 /* 1 pide el correo · 2 pide el código */
+let accesoModo = "equipo";          /* "equipo" con la clave compartida · "personal" con correo */
+
+function pintarAcceso() {
+  const conEquipo = !!CONFIG.equipo.correo;
+  const equipo = accesoModo === "equipo" && conEquipo;
+  $("#acceso-titulo").textContent = equipo ? "Acceso del equipo" : "Acceso de editores e inspectores";
+  $("#acceso-ayuda").innerHTML = equipo
+    ? "Escribe la clave que les compartieron para ver la agenda. Queda guardada en este dispositivo."
+    : (accesoPaso === 1
+      ? "Te enviaremos un código a tu correo. Escríbelo <b>en este mismo dispositivo</b>: así la sesión queda aquí y no en otro equipo."
+      : "Revisa tu correo, también la carpeta de no deseados, y escribe aquí el código. El mismo correo trae un enlace: si lo abres <b>en este dispositivo</b>, entras directo.");
+  $("#campo-clave").hidden = !equipo;
+  $("#campo-correo").hidden = equipo;
+  $("#campo-codigo").hidden = equipo || accesoPaso === 1;
+  $("#a-enviar").textContent = equipo ? "Ver la agenda" : (accesoPaso === 1 ? "Enviarme el código" : "Entrar");
+  $("#cambiar-modo").hidden = !conEquipo;
+  $("#cambiar-modo").textContent = equipo ? "Soy editor o inspector" : "Entrar con la clave del equipo";
+  (equipo ? $("#a-clave") : (accesoPaso === 1 ? $("#a-correo") : $("#a-codigo"))).focus();
 }
+function abrirAcceso(modo) {
+  accesoPaso = 1;
+  accesoModo = modo || (CONFIG.equipo.correo ? "equipo" : "personal");
+  $("#a-codigo").value = "";
+  $("#a-clave").value = "";
+  if (!$("#dlg-acceso").open) $("#dlg-acceso").showModal();
+  pintarAcceso();
+}
+$("#cambiar-modo").addEventListener("click", () => {
+  accesoModo = accesoModo === "equipo" ? "personal" : "equipo";
+  accesoPaso = 1;
+  pintarAcceso();
+});
 $("#a-cancelar").addEventListener("click", () => $("#dlg-acceso").close());
+
+async function tomarRol() {
+  const r = await S.store.probarEdicion();
+  const rol = r === true ? { rol: "editor" } : (r && r.rol ? r : null);
+  S.edicion = !!rol;
+  S.rol = rol ? rol.rol : "lector";
+  S.yo = rol && rol.nombre ? rol.nombre : "";
+  if (S.store.recargar) await S.store.recargar();
+  render();
+  return S.rol;
+}
+
 $("#form-acceso").addEventListener("submit", async (ev) => {
   ev.preventDefault();
   const sb = S.store && S.store.cliente;
   if (!sb) return $("#dlg-acceso").close();
-  const correo = $("#a-correo").value.trim();
   const boton = $("#a-enviar");
-  if (!correo) return;
   boton.disabled = true;
   try {
+    /* --- clave compartida --- */
+    if (accesoModo === "equipo" && CONFIG.equipo.correo) {
+      const clave = $("#a-clave").value;
+      if (!clave) return;
+      const { error } = await sb.auth.signInWithPassword({ email: CONFIG.equipo.correo, password: clave });
+      if (error) { toast("Clave incorrecta."); return; }
+      $("#dlg-acceso").close();
+      await tomarRol();
+      toast("Listo: ya ves la agenda del equipo.");
+      return;
+    }
+    /* --- correo y código --- */
+    const correo = $("#a-correo").value.trim();
+    if (!correo) return;
     if (accesoPaso === 1) {
       const { error } = await sb.auth.signInWithOtp({ email: correo, options: { emailRedirectTo: location.href } });
       if (error) { toast("No se pudo enviar: " + error.message); return; }
       accesoPaso = 2;
-      $("#campo-codigo").hidden = false;
-      $("#a-codigo").focus();
-      boton.textContent = "Entrar";
-      $("#acceso-ayuda").innerHTML = "Revisa tu correo (también la carpeta de no deseados) y escribe aquí el código. Si prefieres, el mismo correo trae un enlace: ábrelo <b>en este dispositivo</b> y entrarás directo.";
+      pintarAcceso();
       toast("Código enviado a " + correo + ".");
       return;
     }
@@ -1273,15 +1329,10 @@ $("#form-acceso").addEventListener("submit", async (ev) => {
     const { error } = await sb.auth.verifyOtp({ email: correo, token, type: "email" });
     if (error) { toast("Código incorrecto o vencido: " + error.message); return; }
     $("#dlg-acceso").close();
-    const r = await S.store.probarEdicion();
-    const rol = r === true ? { rol: "editor" } : (r && r.rol ? r : null);
-    S.edicion = !!rol;
-    S.rol = rol ? rol.rol : "lector";
-    S.yo = rol && rol.nombre ? rol.nombre : "";
-    toast(S.edicion
-      ? (S.rol === "editor" ? "Sesión iniciada: puedes editar la agenda." : "Sesión de " + S.yo + ": puedes registrar el estado de tus visitas.")
+    const rol = await tomarRol();
+    toast(rol === "editor" ? "Sesión iniciada: puedes editar la agenda."
+      : rol === "inspector" ? "Sesión de " + S.yo + ": puedes registrar el estado de tus visitas."
       : "Tu correo no está registrado como editor ni inspector.");
-    render();
   } finally {
     boton.disabled = false;
   }
@@ -1382,6 +1433,7 @@ $("#btn-edicion").addEventListener("click", async () => {
   try { r = await S.store.probarEdicion(); } catch (e) { r = false; }
   b.disabled = false;
   if (r === "sesion") { abrirAcceso(); return; }
+  if (r === "equipo") { toast("Esta es la sesión del equipo, de solo lectura."); abrirAcceso("personal"); return; }
   const rol = r === true ? { rol: "editor" } : (r && r.rol ? r : null);
   S.edicion = !!rol;
   S.rol = rol ? rol.rol : "lector";
@@ -1415,6 +1467,10 @@ document.addEventListener("keydown", (ev) => {
   if (store.roster) { try { S.roster = await store.roster(); } catch (e) { console.warn(e); } }
   store.escucha(aplicar);
   render();
+  if (store.tipo === "supabase" && CONFIG.equipo.correo) {
+    const { data } = await store.cliente.auth.getSession();
+    if (!data || !data.session) abrirAcceso("equipo");
+  }
 })();
 </script>
 </body>
