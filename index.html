@@ -591,6 +591,13 @@ async function storeClaudeDb() {
   };
 }
 
+/* PostgREST avisa con estos mensajes cuando la columna no existe todavía. */
+function columnaFaltante(e) {
+  const t = String((e && (e.message || e.details || e.hint)) || "");
+  const m = t.match(/'([A-Za-z_]+)' column/) || t.match(/column "([A-Za-z_]+)"/) || t.match(/column ([a-z_]+) of relation/);
+  return m ? (m[1] || m[2]) : null;
+}
+
 async function storeSupabase(cfg) {
   await cargarScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js");
   const sb = window.supabase.createClient(cfg.url, cfg.anonKey);
@@ -613,19 +620,32 @@ async function storeSupabase(cfg) {
       refrescar();
       sb.channel("visitas").on("postgres_changes", { event: "*", schema: "public", table: "visitas" }, refrescar).subscribe();
     },
-    /* Alta e actualización van separadas: el inspector solo tiene permiso
-       de actualizar sus visitas, no de insertar. */
+    /* Alta y actualización van separadas: el inspector solo tiene permiso
+       de actualizar sus visitas, no de insertar.
+       Si la base todavía no tiene alguna columna —porque falta ejecutar una
+       migración—, se guarda sin ella en lugar de perder el registro.      */
     async guardar(o) {
       const fila = aFila(o);
-      let error;
-      if (ids.has(o.id)) {
-        const campos = { ...fila }; delete campos.id;
-        ({ error } = await sb.from("visitas").update(campos).eq("id", o.id));
-      } else {
-        ({ error } = await sb.from("visitas").insert(fila));
+      const omitidas = [];
+      for (let intento = 0; intento < 4; intento++) {
+        let error;
+        if (ids.has(o.id)) {
+          const campos = { ...fila }; delete campos.id;
+          ({ error } = await sb.from("visitas").update(campos).eq("id", o.id));
+        } else {
+          ({ error } = await sb.from("visitas").insert(fila));
+        }
+        if (!error) {
+          if (alCambiar) alCambiar(await leer());
+          if (omitidas.length) toast("Guardado. Falta ejecutar en la base la migración de: " + omitidas.join(", ") + ".");
+          return;
+        }
+        const falta = columnaFaltante(error);
+        if (!falta || !(falta in fila)) throw error;
+        delete fila[falta];
+        omitidas.push(falta);
+        console.warn("La base no tiene la columna «" + falta + "»; se guarda sin ella.");
       }
-      if (error) throw error;
-      if (alCambiar) alCambiar(await leer());
     },
     /* Nombres del equipo registrado (la vista pública no expone correos). */
     async roster() {
