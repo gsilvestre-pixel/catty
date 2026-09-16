@@ -871,6 +871,11 @@ function renderAviso() {
   const c = $("#aviso");
   if (S.ejemplo) {
     c.innerHTML = '<div class="aviso demo"><span><b>Datos de ejemplo.</b> Todavía no hay visitas programadas: estas son de muestra y desaparecen al crear la primera.</span></div>';
+  } else if (S.store && S.store.tipo === "supabase" && !S.visitas.length && !S.edicion) {
+    /* Puede ser una agenda vacía, o una restringida al equipo. */
+    c.innerHTML = '<div class="aviso"><span>Si esperabas ver visitas, puede que la agenda esté reservada al equipo: identifícate con tu correo.</span>'
+      + '<button class="btn chico" id="aviso-entrar">Entrar</button></div>';
+    const b = $("#aviso-entrar"); if (b) b.onclick = () => $("#btn-edicion").click();
   } else if (S.store && S.store.tipo === "local") {
     c.innerHTML = '<div class="aviso"><span><b>Modo local.</b> La agenda se guarda solo en este navegador.</span></div>';
   } else c.innerHTML = "";
