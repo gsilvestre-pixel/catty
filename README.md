@@ -24,6 +24,12 @@ Dos paneles completan la vista:
 
 ## Quién puede hacer qué
 
+**Cómo entra cada persona:** botón **Activar edición** → correo → se envía un
+código de 6 dígitos que se escribe **en el mismo dispositivo**. El correo
+también trae un enlace, pero ese enlace abre sesión solo en el aparato donde se
+abre; por eso el código es el camino seguro cuando alguien pide el acceso desde
+el celular y revisa el correo en la computadora.
+
 | Rol | Alcance |
 |---|---|
 | **Cualquiera con el enlace** | Ver la agenda en las cuatro vistas, filtrar por persona y descargar el Excel. |

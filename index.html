@@ -458,6 +458,27 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
 <datalist id="lista-entidades"></datalist>
 <datalist id="lista-personas"></datalist>
 
+<dialog id="dlg-acceso">
+  <form method="dialog" id="form-acceso">
+    <header><h2 id="acceso-titulo">Acceso</h2></header>
+    <div class="cuerpo">
+      <p class="ayuda" id="acceso-ayuda">Te enviaremos un código a tu correo. Escríbelo <b>en este mismo dispositivo</b>: así la sesión queda aquí y no en otro equipo.</p>
+      <div class="campo">
+        <label for="a-correo">Correo autorizado</label>
+        <input type="email" id="a-correo" required autocomplete="email" placeholder="nombre@dominio.pe">
+      </div>
+      <div class="campo" id="campo-codigo" hidden>
+        <label for="a-codigo">Código recibido</label>
+        <input type="text" id="a-codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="6 dígitos">
+      </div>
+    </div>
+    <footer>
+      <button type="button" class="btn" id="a-cancelar">Cancelar</button>
+      <button type="submit" class="btn primario" id="a-enviar">Enviarme el código</button>
+    </footer>
+  </form>
+</dialog>
+
 <dialog id="dlg">
   <form method="dialog" id="form">
     <header><h2 id="dlg-titulo">Nueva visita</h2></header>
@@ -1204,6 +1225,62 @@ async function descargarExcel() {
 }
 $("#btn-excel").addEventListener("click", descargarExcel);
 
+/* ---------------------- acceso de editores e inspectores ----------------
+   El enlace del correo abre sesión en el aparato donde se abre, así que
+   quien pide el acceso desde el celular y luego abre el correo en la
+   computadora se queda sin sesión en el celular. Por eso el acceso se
+   confirma con un código escrito aquí mismo.                            */
+let accesoPaso = 1;
+function abrirAcceso() {
+  accesoPaso = 1;
+  $("#acceso-titulo").textContent = "Acceso";
+  $("#campo-codigo").hidden = true;
+  $("#a-codigo").value = "";
+  $("#a-enviar").textContent = "Enviarme el código";
+  $("#acceso-ayuda").innerHTML = "Te enviaremos un código a tu correo. Escríbelo <b>en este mismo dispositivo</b>: así la sesión queda aquí y no en otro equipo.";
+  $("#dlg-acceso").showModal();
+  $("#a-correo").focus();
+}
+$("#a-cancelar").addEventListener("click", () => $("#dlg-acceso").close());
+$("#form-acceso").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const sb = S.store && S.store.cliente;
+  if (!sb) return $("#dlg-acceso").close();
+  const correo = $("#a-correo").value.trim();
+  const boton = $("#a-enviar");
+  if (!correo) return;
+  boton.disabled = true;
+  try {
+    if (accesoPaso === 1) {
+      const { error } = await sb.auth.signInWithOtp({ email: correo, options: { emailRedirectTo: location.href } });
+      if (error) { toast("No se pudo enviar: " + error.message); return; }
+      accesoPaso = 2;
+      $("#campo-codigo").hidden = false;
+      $("#a-codigo").focus();
+      boton.textContent = "Entrar";
+      $("#acceso-ayuda").innerHTML = "Revisa tu correo (también la carpeta de no deseados) y escribe aquí el código. Si prefieres, el mismo correo trae un enlace: ábrelo <b>en este dispositivo</b> y entrarás directo.";
+      toast("Código enviado a " + correo + ".");
+      return;
+    }
+    const token = $("#a-codigo").value.replace(/\s/g, "");
+    if (!token) return;
+    const { error } = await sb.auth.verifyOtp({ email: correo, token, type: "email" });
+    if (error) { toast("Código incorrecto o vencido: " + error.message); return; }
+    $("#dlg-acceso").close();
+    const r = await S.store.probarEdicion();
+    const rol = r === true ? { rol: "editor" } : (r && r.rol ? r : null);
+    S.edicion = !!rol;
+    S.rol = rol ? rol.rol : "lector";
+    S.yo = rol && rol.nombre ? rol.nombre : "";
+    toast(S.edicion
+      ? (S.rol === "editor" ? "Sesión iniciada: puedes editar la agenda." : "Sesión de " + S.yo + ": puedes registrar el estado de tus visitas.")
+      : "Tu correo no está registrado como editor ni inspector.");
+    render();
+  } finally {
+    boton.disabled = false;
+  }
+});
+
 /* colores de la aplicación (se recuerdan en el dispositivo) */
 const TEMAS = [
   { id: "sobrio",  nombre: "Sobrio",  tonos: ["#16506B", "#1C7A52", "#B4551F"] },
@@ -1298,14 +1375,7 @@ $("#btn-edicion").addEventListener("click", async () => {
   let r = false;
   try { r = await S.store.probarEdicion(); } catch (e) { r = false; }
   b.disabled = false;
-  if (r === "sesion") {
-    const correo = prompt("Ingresa tu correo autorizado. Recibirás un enlace de acceso.");
-    if (correo) {
-      const { error } = await S.store.cliente.auth.signInWithOtp({ email: correo.trim(), options: { emailRedirectTo: location.href } });
-      toast(error ? "No se pudo enviar el enlace: " + error.message : "Enlace enviado a " + correo.trim() + ".");
-    }
-    render(); return;
-  }
+  if (r === "sesion") { abrirAcceso(); return; }
   const rol = r === true ? { rol: "editor" } : (r && r.rol ? r : null);
   S.edicion = !!rol;
   S.rol = rol ? rol.rol : "lector";

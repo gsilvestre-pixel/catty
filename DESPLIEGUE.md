@@ -51,7 +51,22 @@ Son dos piezas independientes:
 > La clave `anon` viaja en el navegador de cualquier visitante y eso es normal:
 > quién puede escribir lo decide el RLS del paso 2, no la clave.
 
-6. **Authentication → URL Configuration**: poner
+6. **Authentication → Email Templates → Magic Link**: agregar el código al
+   correo, para que el acceso también funcione cuando alguien pide el ingreso
+   desde el celular y abre el correo en otro equipo. El contenido queda así:
+
+   ```html
+   <h2>Acceso a la agenda de inspecciones</h2>
+   <p>Tu código es: <strong>{{ .Token }}</strong></p>
+   <p>Escríbelo en la aplicación, en el mismo dispositivo donde lo pediste.</p>
+   <p>O entra directo desde este dispositivo:
+      <a href="{{ .ConfirmationURL }}">abrir la agenda</a></p>
+   ```
+
+   Sin `{{ .Token }}` el correo solo trae el enlace, y el enlace inicia sesión
+   únicamente en el aparato donde se abre.
+
+7. **Authentication → URL Configuration**: poner
    `https://gsilvestre-pixel.github.io/catty/` como *Site URL* y agregarla
    también en *Redirect URLs*. Sin esto, el enlace de acceso que reciben los
    editores por correo no los devuelve a la agenda.
