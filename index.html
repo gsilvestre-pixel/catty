@@ -348,6 +348,10 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
   font-size:18px; line-height:1; padding:6px 8px; cursor:pointer;
 }
 .emojis button:hover{background:var(--surface-2); border-color:var(--ink-3)}
+.titulo-sec{font-size:13px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-3); font-weight:600; margin:0}
+.dif{display:flex; gap:8px; align-items:baseline; padding:6px 0; border-top:1px solid var(--line-soft); font-size:13.5px}
+.dif b{font-family:var(--mono); font-size:12px; min-width:70px}
+.dif .alta{color:var(--ok)} .dif .cambio{color:var(--rep)} .dif .baja{color:var(--mal)}
 .cambiar{
   border:none; background:none; cursor:pointer; padding:4px 0; text-align:left;
   font-size:13.5px; font-weight:600; color:var(--accent); text-decoration:underline;
@@ -415,6 +419,7 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
     <button class="btn" id="btn-personas" aria-expanded="false">Personas</button>
     <button class="btn" id="btn-excel" title="Descargar la agenda en Excel">Excel</button>
     <button class="btn" id="btn-tema" aria-expanded="false">Colores</button>
+    <button class="btn" id="btn-admin" hidden>Administrar</button>
     <button class="btn solo-movil" id="btn-mas" aria-expanded="false" aria-label="Más opciones">⋯</button>
     <button class="btn" id="btn-edicion">Activar edición</button>
     <button class="btn primario" id="btn-nueva">+ Visita</button>
@@ -426,6 +431,7 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
   <button type="button" data-hace="btn-personas">Filtrar por persona</button>
   <button type="button" data-hace="btn-excel">Descargar Excel</button>
   <button type="button" data-hace="btn-tema">Colores de la app</button>
+  <button type="button" data-hace="btn-admin" id="m-admin" hidden>Administrar</button>
   <button type="button" data-hace="btn-edicion" id="m-edicion">Activar edición</button>
 </div>
 
@@ -467,6 +473,31 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
 
 <datalist id="lista-entidades"></datalist>
 <datalist id="lista-personas"></datalist>
+
+<dialog id="dlg-admin">
+  <form method="dialog" id="form-admin">
+    <header><h2>Administración</h2></header>
+    <div class="cuerpo">
+      <h3 class="titulo-sec">Padrón de entidades</h3>
+      <p class="ayuda" id="admin-estado"></p>
+      <div class="campo">
+        <label for="ad-archivo">Archivo del padrón (CSV)</label>
+        <input type="file" id="ad-archivo" accept=".csv,.txt,text/csv">
+      </div>
+      <div class="campo">
+        <label for="ad-texto">O pegar las filas</label>
+        <textarea id="ad-texto" style="min-height:110px; font-family:var(--mono); font-size:12.5px" placeholder="codigo;entidad;ubicacion&#10;E-001;Municipalidad Distrital de Santiago;Cusco"></textarea>
+      </div>
+      <div id="ad-resumen"></div>
+      <label class="ayuda"><input type="checkbox" id="ad-bajas"> Quitar del padrón las entidades que ya no estén en el archivo</label>
+    </div>
+    <footer>
+      <button type="button" class="btn" id="ad-cerrar">Cerrar</button>
+      <button type="button" class="btn" id="ad-revisar">Revisar cambios</button>
+      <button type="submit" class="btn primario" id="ad-aplicar" hidden>Aplicar</button>
+    </footer>
+  </form>
+</dialog>
 
 <dialog id="dlg-acceso">
   <form method="dialog" id="form-acceso">
@@ -687,6 +718,21 @@ async function storeSupabase(cfg) {
       }
     },
     async recargar() { if (alCambiar) alCambiar(await leer()); },
+    async padron() {
+      const { data, error } = await sb.from("entidades").select("codigo,nombre,ubicacion").order("nombre");
+      if (error) { console.warn("padrón:", error.message); return []; }
+      return data || [];
+    },
+    async guardarPadron(filas, bajas) {
+      if (filas.length) {
+        const { error } = await sb.from("entidades").upsert(filas, { onConflict: "codigo" });
+        if (error) throw error;
+      }
+      if (bajas && bajas.length) {
+        const { error } = await sb.from("entidades").delete().in("codigo", bajas);
+        if (error) throw error;
+      }
+    },
     /* Nombres del equipo registrado (la vista pública no expone correos). */
     async roster() {
       const { data } = await sb.from("inspectores_publicos").select("nombre");
@@ -698,8 +744,8 @@ async function storeSupabase(cfg) {
       const correo = data && data.session && data.session.user ? data.session.user.email : null;
       if (!correo) return "sesion";
       /* Las políticas dejan ver únicamente la fila propia de cada tabla. */
-      const { data: eds } = await sb.from("editores").select("email");
-      if (eds && eds.length) return { rol: "editor" };
+      const { data: eds } = await sb.from("editores").select("*");
+      if (eds && eds.length) return { rol: "editor", admin: !!eds[0].admin };
       const { data: ins } = await sb.from("inspectores").select("nombre");
       if (ins && ins.length) return { rol: "inspector", nombre: ins[0].nombre };
       return false;
@@ -729,7 +775,7 @@ const S = {
   reales: [], visitas: EJEMPLO, ejemplo: true,
   store: null, edicion: false, rol: "lector", yo: "", roster: [],
   vista: "mes", cursor: hoyISO(), personas: [], filtroRes: "", verPasadas: false, hoy: hoyISO(),
-  desde: null, soloNovedades: false
+  desde: null, soloNovedades: false, admin: false, padron: []
 };
 
 function aplicar(filas) {
@@ -771,7 +817,10 @@ const personas = () => {
   S.visitas.forEach((v) => listaP(v.personas).forEach((p) => s.add(p)));
   return Array.from(s).sort((a, b) => a.localeCompare(b, "es"));
 };
-const entidades = () => Array.from(new Set(S.visitas.map((v) => v.entidad).filter(Boolean))).sort((a, b) => a.localeCompare(b, "es"));
+/* Sugerencias del campo Entidad: el padrón oficial más lo ya escrito. */
+const entidades = () => Array.from(new Set(
+    S.padron.map((e) => e.nombre).concat(S.visitas.map((v) => v.entidad)).filter(Boolean)
+  )).sort((a, b) => a.localeCompare(b, "es"));
 
 /* Novedades: lo creado o modificado desde la última vez que se abrió la
    agenda en este dispositivo. */
@@ -788,6 +837,8 @@ function render() {
   $("#btn-edicion").classList.toggle("activo", S.edicion);
   $("#btn-nueva").hidden = !puedeTodo();
   $("#fab").hidden = !puedeTodo();
+  $("#btn-admin").hidden = !S.admin;
+  $("#m-admin").hidden = !S.admin;
   $("#m-edicion").textContent = S.edicion ? "Cerrar sesión" : "Activar edición";
   $("#btn-hoy").hidden = !calendario;
   $(".flechas").hidden = !calendario;
@@ -1323,7 +1374,9 @@ async function tomarRol() {
   S.edicion = !!rol;
   S.rol = rol ? rol.rol : "lector";
   S.yo = rol && rol.nombre ? rol.nombre : "";
+  S.admin = !!(rol && rol.admin);
   if (S.store.recargar) await S.store.recargar();
+  if (S.admin && S.store.padron) { try { S.padron = await S.store.padron(); } catch (e) {} }
   render();
   return S.rol;
 }
@@ -1368,6 +1421,111 @@ $("#form-acceso").addEventListener("submit", async (ev) => {
   } finally {
     boton.disabled = false;
   }
+});
+
+/* ---------------------- administración del padrón ----------------------
+   Solo la ve quien esté marcado como administrador. El padrón alimenta las
+   sugerencias del campo Entidad; escribir un nombre fuera de él sigue
+   permitido.                                                              */
+function parsePadron(texto) {
+  const lineas = String(texto).replace(/\r/g, "").split("\n").filter((l) => l.trim() !== "");
+  if (!lineas.length) return [];
+  const cuenta = (c) => (lineas[0].match(new RegExp("\\" + c, "g")) || []).length;
+  const sep = cuenta("\t") ? "\t" : cuenta(";") >= cuenta(",") ? ";" : ",";
+  const fila = (l) => {
+    const out = []; let cur = "", q = false;
+    for (let i = 0; i < l.length; i++) {
+      const ch = l[i];
+      if (ch === '"') { if (q && l[i + 1] === '"') { cur += '"'; i++; } else q = !q; }
+      else if (ch === sep && !q) { out.push(cur.trim()); cur = ""; }
+      else cur += ch;
+    }
+    out.push(cur.trim());
+    return out;
+  };
+  const norm = (x) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "");
+  const cab = fila(lineas[0]).map(norm);
+  const col = (...alias) => cab.findIndex((c) => alias.some((a) => c === a || c.startsWith(a)));
+  const idx = {
+    codigo: col("codigo", "cod", "clave", "id"),
+    nombre: col("entidad", "nombre", "razonsocial", "denominacion"),
+    ubicacion: col("ubicacion", "distrito", "provincia", "departamento", "region", "localidad")
+  };
+  if (idx.nombre < 0) idx.nombre = idx.codigo === 0 ? 1 : 0;
+  if (idx.codigo < 0) idx.codigo = idx.nombre === 0 ? 1 : 0;
+  const filas = [];
+  for (let i = 1; i < lineas.length; i++) {
+    const c = fila(lineas[i]);
+    const codigo = (c[idx.codigo] || "").trim();
+    const nombre = (c[idx.nombre] || "").trim();
+    if (!codigo || !nombre) continue;
+    filas.push({ codigo, nombre, ubicacion: idx.ubicacion >= 0 ? (c[idx.ubicacion] || "").trim() : "" });
+  }
+  return filas;
+}
+
+function compararPadron(nuevas) {
+  const actual = new Map(S.padron.map((e) => [e.codigo, e]));
+  const vistos = new Set();
+  const altas = [], cambios = [];
+  nuevas.forEach((n) => {
+    vistos.add(n.codigo);
+    const a = actual.get(n.codigo);
+    if (!a) altas.push(n);
+    else if (a.nombre !== n.nombre || (a.ubicacion || "") !== (n.ubicacion || "")) cambios.push({ antes: a, ahora: n });
+  });
+  const bajas = S.padron.filter((e) => !vistos.has(e.codigo));
+  return { altas, cambios, bajas };
+}
+
+let padronPropuesto = null;
+function abrirAdmin() {
+  padronPropuesto = null;
+  $("#ad-texto").value = "";
+  $("#ad-archivo").value = "";
+  $("#ad-resumen").innerHTML = "";
+  $("#ad-aplicar").hidden = true;
+  $("#ad-bajas").checked = false;
+  $("#admin-estado").textContent = S.padron.length
+    ? "El padrón tiene " + S.padron.length + " entidades registradas."
+    : "El padrón está vacío: sube el archivo para cargarlo por primera vez.";
+  $("#dlg-admin").showModal();
+}
+$("#btn-admin").addEventListener("click", abrirAdmin);
+$("#ad-cerrar").addEventListener("click", () => $("#dlg-admin").close());
+$("#ad-revisar").addEventListener("click", async () => {
+  let texto = $("#ad-texto").value.trim();
+  const f = $("#ad-archivo").files && $("#ad-archivo").files[0];
+  if (!texto && f) texto = await f.text();
+  const filas = parsePadron(texto);
+  if (!filas.length) {
+    $("#ad-resumen").innerHTML = '<p class="ayuda">No se reconocieron filas. La primera línea debe ser el encabezado, con una columna de código y otra de entidad.</p>';
+    $("#ad-aplicar").hidden = true;
+    return;
+  }
+  const d = compararPadron(filas);
+  padronPropuesto = { filas, bajas: d.bajas.map((e) => e.codigo) };
+  const linea = (cls, etq, txt) => '<div class="dif"><b class="' + cls + '">' + etq + "</b><span>" + esc(txt) + "</span></div>";
+  $("#ad-resumen").innerHTML =
+    '<p class="ayuda"><b>' + filas.length + "</b> entidades en el archivo · "
+    + d.altas.length + " nuevas · " + d.cambios.length + " con cambios · " + d.bajas.length + " que ya no figuran.</p>"
+    + d.altas.slice(0, 8).map((e) => linea("alta", "nueva", e.codigo + " · " + e.nombre)).join("")
+    + d.cambios.slice(0, 8).map((c) => linea("cambio", "cambia", c.antes.nombre + "  →  " + c.ahora.nombre)).join("")
+    + d.bajas.slice(0, 8).map((e) => linea("baja", "ya no", e.codigo + " · " + e.nombre)).join("")
+    + ((d.altas.length + d.cambios.length + d.bajas.length) > 24 ? '<p class="ayuda">…y más. Se aplicarán todas.</p>' : "");
+  $("#ad-aplicar").hidden = false;
+});
+$("#form-admin").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  if (!padronPropuesto) return;
+  const bajas = $("#ad-bajas").checked ? padronPropuesto.bajas : [];
+  try {
+    await S.store.guardarPadron(padronPropuesto.filas, bajas);
+    S.padron = await S.store.padron();
+    $("#dlg-admin").close();
+    toast("Padrón actualizado: " + S.padron.length + " entidades.");
+    render();
+  } catch (e) { toast("No se pudo actualizar: " + (e.message || e.code)); }
 });
 
 /* colores de la aplicación (se recuerdan en el dispositivo) */
@@ -1503,6 +1661,7 @@ document.addEventListener("keydown", (ev) => {
   if (!store) store = storeLocal();
   S.store = store;
   if (store.roster) { try { S.roster = await store.roster(); } catch (e) { console.warn(e); } }
+  if (store.padron) { try { S.padron = await store.padron(); } catch (e) { console.warn(e); } }
   store.escucha(aplicar);
   render();
   /* La próxima vez, "novedades" se cuenta desde este momento. */
