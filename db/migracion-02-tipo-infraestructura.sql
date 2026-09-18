@@ -5,16 +5,21 @@
 --  Es idempotente: repetirla no rompe nada.
 --
 --  Agrega a cada visita la clase de obra inspeccionada:
---    'edificaciones' (se muestra en morado) o
---    'superficies'   (se muestra en verde).
+--    'edificaciones' (morado),
+--    'superficies'   (verde) o
+--    'ambas'         (hay titulares con los dos tipos).
 --  Queda nula mientras no se especifique.
 -- =====================================================================
+
+--  NOTA: esta migración se puede ejecutar por sí sola, sin la 01. Solo
+--  necesita la tabla `visitas` y la función `es_editor()`, que vienen en
+--  db/schema.sql.
 
 alter table public.visitas add column if not exists tipo text;
 
 alter table public.visitas drop constraint if exists visitas_tipo_check;
 alter table public.visitas
-  add constraint visitas_tipo_check check (tipo in ('edificaciones', 'superficies'));
+  add constraint visitas_tipo_check check (tipo in ('edificaciones', 'superficies', 'ambas'));
 
 create index if not exists visitas_tipo_idx on public.visitas (tipo);
 

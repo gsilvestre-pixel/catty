@@ -70,8 +70,9 @@ create table if not exists public.visitas (
   entidad        text not null,
   fecha          date not null,
   hora           time not null,
-  -- clase de obra: 'edificaciones' (morado) o 'superficies' (verde)
-  tipo           text check (tipo in ('edificaciones', 'superficies')),
+  -- clase de obra: 'edificaciones' (morado), 'superficies' (verde) o
+  -- 'ambas' cuando el titular tiene los dos tipos
+  tipo           text check (tipo in ('edificaciones', 'superficies', 'ambas')),
   -- una o más personas por visita
   personas       text[] not null default '{}',
   -- nulo mientras la visita solo está programada

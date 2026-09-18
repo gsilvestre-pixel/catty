@@ -7,7 +7,11 @@
 --    1. Un administrador —por encima del editor— que es quien puede
 --       mantener el padrón desde la propia agenda.
 --    2. La tabla `entidades`: el padrón que alimenta las sugerencias al
---       escribir el nombre de una entidad.
+--       escribir el nombre de una entidad y propone su clase de obra.
+--
+--  Se puede ejecutar por sí sola, sin la 01. Solo necesita la tabla
+--  `editores` y la función `tocar_actualizado()`, que vienen en
+--  db/schema.sql.
 -- =====================================================================
 
 -- ------------------------------------------------------------------
@@ -40,9 +44,18 @@ create table if not exists public.entidades (
   id             bigint generated always as identity primary key,
   nombre         text not null,
   codigo         text not null default '',
+  -- clase de obra del titular, para proponerla al programar la visita
+  tipo           text not null default '',
   ubicacion      text not null default '',
   actualizado_en timestamptz not null default now()
 );
+
+-- Si la tabla ya existía de una ejecución anterior, se le agrega la columna.
+alter table public.entidades add column if not exists tipo text not null default '';
+
+alter table public.entidades drop constraint if exists entidades_tipo_check;
+alter table public.entidades
+  add constraint entidades_tipo_check check (tipo in ('', 'edificaciones', 'superficies', 'ambas'));
 
 -- Una entidad, una fila: el nombre no se repite (sin distinguir mayúsculas).
 create unique index if not exists entidades_nombre_uniq on public.entidades (lower(nombre));

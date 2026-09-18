@@ -250,6 +250,10 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
 .chip.sup{background:var(--sup-soft); color:var(--sup); border-color:color-mix(in srgb, var(--sup) 30%, transparent)}
 .pt{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; vertical-align:0}
 .pt.edif{background:var(--edif)} .pt.sup{background:var(--sup)}
+/* Los dos colores en un punto de 10 px: la diagonal con una línea de por
+   medio se distingue; una mitad y mitad simple se ve como un color solo. */
+.pt.amb,.leyenda i.amb{background:linear-gradient(135deg,var(--edif) 0 46%,#fff 46% 54%,var(--sup) 54% 100%)}
+.pista{margin:5px 0 0; font-size:12px; color:var(--ink-2)}
 .leyenda i.edif{background:var(--edif)} .leyenda i.sup{background:var(--sup)}
 
 .tablero{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); margin-top:14px; overflow:hidden}
@@ -463,6 +467,7 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
     <span><i class="rep"></i> Reprogramado</span>
     <span><i class="edif"></i> Infraestructura de edificaciones</span>
     <span><i class="sup"></i> Infraestructura de superficies</span>
+    <span><i class="amb"></i> Ambas</span>
   </div>
   <p class="pie"><span id="pie-fuente">—</span><span id="pie-cuenta"></span></p>
 </main>
@@ -561,7 +566,9 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
           <option value="">Sin especificar</option>
           <option value="edificaciones">Infraestructura de edificaciones</option>
           <option value="superficies">Infraestructura de superficies</option>
+          <option value="ambas">Edificaciones y superficies</option>
         </select>
+        <p class="ayuda pista" id="pista-tipo" hidden>Sugerido por el padrón. Puedes cambiarlo.</p>
       </div>
       <div class="campo">
         <label for="f-estado">Estado de la inspección</label>
@@ -729,7 +736,11 @@ async function storeSupabase(cfg) {
     },
     async recargar() { const filas = await leer(); if (filas && alCambiar) alCambiar(filas); },
     async padron() {
-      const { data, error } = await sb.from("entidades").select("codigo,nombre,ubicacion").order("nombre");
+      let { data, error } = await sb.from("entidades").select("codigo,nombre,tipo,ubicacion").order("nombre");
+      if (error && columnaFaltante(error) === "tipo") {
+        /* La migración 05 todavía no agrega el tipo: se lee sin él. */
+        ({ data, error } = await sb.from("entidades").select("codigo,nombre,ubicacion").order("nombre"));
+      }
       if (error) { console.warn("padrón:", error.message); return []; }
       return data || [];
     },
@@ -818,7 +829,7 @@ function guardarCache(visitas) {
 function olvidarCache() { try { localStorage.removeItem(CACHE); localStorage.removeItem(CACHE_PADRON); } catch (e) {} }
 
 /* El padrón cambia poco: se guarda aparte para tenerlo al instante. */
-const CACHE_PADRON = "agenda-padron-v1";
+const CACHE_PADRON = "agenda-padron-v2";   /* v2: el padrón ahora trae el tipo */
 function leerPadronCache() {
   try { const c = JSON.parse(localStorage.getItem(CACHE_PADRON) || "null"); return Array.isArray(c) ? c : null; }
   catch (e) { return null; }
@@ -856,12 +867,18 @@ const EST = {
   negada:       { rot: "Se negó a la inspección", cls: "mal" },
   reprogramado: { rot: "Reprogramado", cls: "rep" }
 };
+/* Hay titulares con los dos tipos de infraestructura: 'ambas' no inventa
+   un tercer color, muestra los dos que ya existen.                      */
 const TIPOS = {
   edificaciones: { rot: "Edificaciones", largo: "Infraestructura de edificaciones", cls: "edif" },
-  superficies:   { rot: "Superficies",   largo: "Infraestructura de superficies",   cls: "sup" }
+  superficies:   { rot: "Superficies",   largo: "Infraestructura de superficies",   cls: "sup" },
+  ambas:         { rot: "Ambas",         largo: "Edificaciones y superficies",      cls: "amb" }
 };
 const tipoDe = (v) => TIPOS[v.tipo] ? v.tipo : "";
-const chipTipo = (v) => tipoDe(v) ? '<span class="chip ' + TIPOS[v.tipo].cls + '">' + TIPOS[v.tipo].rot + "</span>" : "";
+const chip1 = (k) => '<span class="chip ' + TIPOS[k].cls + '">' + TIPOS[k].rot + "</span>";
+const chipTipo = (v) => !tipoDe(v) ? ""
+  : v.tipo === "ambas" ? chip1("edificaciones") + chip1("superficies")
+  : chip1(v.tipo);
 const puntoTipo = (v) => tipoDe(v) ? '<i class="pt ' + TIPOS[v.tipo].cls + '"></i>' : "";
 const resDe = (v) => (v.estado && EST[v.estado] && v.estado !== "pendiente") ? v.estado : "pendiente";
 const claseRes = (v) => EST[resDe(v)].cls;
@@ -1236,9 +1253,32 @@ function abrir(v, fecha, hora) {
   $("#f-cancelar").textContent = ro ? "Cerrar" : "Cancelar";
   $("#aviso-rol").hidden = !soloEstado;
   $("#emojis").hidden = ro;
+  tipoATuGusto = !!v;    /* en una visita guardada manda lo guardado */
+  $("#pista-tipo").hidden = true;
   pintarSugerencias();   /* por si el rato libre aún no llegó */
   $("#dlg").showModal();
 }
+/* El padrón sabe qué clase de obra tiene cada titular, así que al elegir
+   la entidad se propone el tipo. Es solo una propuesta: en cuanto alguien
+   lo cambia a mano, deja de tocarse.                                     */
+let tipoATuGusto = false;
+const tipoDelPadron = (nombre) => {
+  const n = String(nombre || "").trim().toLowerCase();
+  if (!n) return "";
+  const e = S.padron.find((x) => String(x.nombre || "").trim().toLowerCase() === n);
+  return e && TIPOS[e.tipo] ? e.tipo : "";
+};
+function proponerTipo() {
+  if (tipoATuGusto || !puedeTodo()) return;
+  const t = tipoDelPadron($("#f-entidad").value);
+  if (!t || t === $("#f-tipo").value) return;
+  $("#f-tipo").value = t;
+  $("#pista-tipo").hidden = false;
+}
+$("#f-entidad").addEventListener("input", proponerTipo);
+$("#f-entidad").addEventListener("change", proponerTipo);
+$("#f-tipo").addEventListener("change", () => { tipoATuGusto = true; $("#pista-tipo").hidden = true; });
+
 $("#f-cancelar").addEventListener("click", () => $("#dlg").close());
 $("#form").addEventListener("submit", async (ev) => {
   ev.preventDefault();
@@ -1561,6 +1601,7 @@ function parsePadron(texto) {
   const idx = {
     codigo: col("codigo", "cod", "clave", "id"),
     nombre: col("titular", "entidad", "nombre", "razonsocial", "denominacion", "administrado"),
+    tipo: col("tipodeinfraestructura", "tipoinfraestructura", "tipo", "infraestructura", "clasedeobra", "claseobra"),
     ubicacion: col("ubicacion", "distrito", "provincia", "departamento", "region", "localidad")
   };
   /* Si el encabezado no dice nada útil, se decide mirando los datos: el
@@ -1586,6 +1627,15 @@ function parsePadron(texto) {
      código puede faltar —no toda entidad lo tiene— y cuando viene con un
      salto de línea son dos códigos de la misma entidad.                */
   const limpiar = (x) => String(x || "").replace(/\s+/g, " ").trim();
+  /* El cuadro de control escribe la clase de obra de varias formas —y un
+     archivo ya normalizado la trae en una sola palabra—; lo que importa es
+     si menciona edificaciones, superficies o las dos. */
+  const clase = (x) => {
+    const t = limpiar(x).toUpperCase();
+    if (t === "AMBAS" || t === "AMBOS" || t === "LAS DOS") return "ambas";
+    const e = t.includes("EDIFICACI"), u = t.includes("SUPERFICIE");
+    return e && u ? "ambas" : e ? "edificaciones" : u ? "superficies" : "";
+  };
   const filas = [], vistos = new Set();
   for (let i = 1; i < lineas.length; i++) {
     const c = fila(lineas[i]);
@@ -1596,7 +1646,11 @@ function parsePadron(texto) {
     const llave = nombre.toLowerCase();
     if (vistos.has(llave)) continue;          /* una entidad, una sugerencia */
     vistos.add(llave);
-    filas.push({ codigo, nombre, ubicacion: idx.ubicacion >= 0 ? limpiar(c[idx.ubicacion]) : "" });
+    filas.push({
+      codigo, nombre,
+      tipo: idx.tipo >= 0 ? clase(c[idx.tipo]) : "",
+      ubicacion: idx.ubicacion >= 0 ? limpiar(c[idx.ubicacion]) : ""
+    });
   }
   return filas;
 }
@@ -1611,7 +1665,8 @@ function compararPadron(nuevas) {
   const deNombre = new Map(S.padron.map((e) => [porNombre(e), e]));
   const usados = new Set();
   const altas = [], cambios = [];
-  const iguales = (a, n) => a.nombre === n.nombre && (a.codigo || "") === (n.codigo || "") && (a.ubicacion || "") === (n.ubicacion || "");
+  const iguales = (a, n) => a.nombre === n.nombre && (a.codigo || "") === (n.codigo || "")
+    && (a.tipo || "") === (n.tipo || "") && (a.ubicacion || "") === (n.ubicacion || "");
   nuevas.forEach((n) => {
     const a = (n.codigo && deCodigo.get(n.codigo)) || deNombre.get(porNombre(n));
     if (!a) { altas.push(n); return; }
@@ -1650,7 +1705,8 @@ $("#ad-revisar").addEventListener("click", async () => {
   const d = compararPadron(filas);
   padronPropuesto = { filas, bajas: d.bajas.map((e) => e.nombre) };
   const linea = (cls, etq, txt) => '<div class="dif"><b class="' + cls + '">' + etq + "</b><span>" + esc(txt) + "</span></div>";
-  const rotularE = (e) => (e.codigo ? e.codigo + " · " : "") + e.nombre;
+  const rotularE = (e) => (e.codigo ? e.codigo + " · " : "") + e.nombre
+    + (TIPOS[e.tipo] ? " (" + TIPOS[e.tipo].rot + ")" : "");
   $("#ad-resumen").innerHTML =
     '<p class="ayuda"><b>' + filas.length + "</b> entidades en el archivo · "
     + d.altas.length + " nuevas · " + d.cambios.length + " con cambios · " + d.bajas.length + " que ya no figuran.</p>"
