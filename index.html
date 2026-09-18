@@ -1551,9 +1551,26 @@ function parsePadron(texto) {
   const col = (...alias) => cab.findIndex((c) => alias.some((a) => c === a || c.startsWith(a)));
   const idx = {
     codigo: col("codigo", "cod", "clave", "id"),
-    nombre: col("entidad", "nombre", "razonsocial", "denominacion"),
+    nombre: col("titular", "entidad", "nombre", "razonsocial", "denominacion", "administrado"),
     ubicacion: col("ubicacion", "distrito", "provincia", "departamento", "region", "localidad")
   };
+  /* Si el encabezado no dice nada útil, se decide mirando los datos: el
+     código es siempre mucho más corto que el nombre de la entidad. */
+  if (idx.nombre < 0 || idx.codigo < 0) {
+    const muestra = lineas.slice(1, 21).map(fila);
+    const largo = (j) => {
+      const vs = muestra.map((c) => (c[j] || "").trim()).filter(Boolean);
+      return vs.length ? vs.reduce((t, v) => t + v.length, 0) / vs.length : 0;
+    };
+    const libres = cab.map((_, j) => j).filter((j) => j !== idx.nombre && j !== idx.codigo && largo(j) > 0);
+    if (idx.codigo < 0 && libres.length) {
+      idx.codigo = libres.reduce((a, b) => (largo(b) < largo(a) ? b : a));
+    }
+    const resto = libres.filter((j) => j !== idx.codigo);
+    if (idx.nombre < 0 && resto.length) {
+      idx.nombre = resto.reduce((a, b) => (largo(b) > largo(a) ? b : a));
+    }
+  }
   if (idx.nombre < 0) idx.nombre = idx.codigo === 0 ? 1 : 0;
   if (idx.codigo < 0) idx.codigo = idx.nombre === 0 ? 1 : 0;
   const filas = [];
