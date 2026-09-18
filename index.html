@@ -253,7 +253,9 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
 .leyenda i.edif{background:var(--edif)} .leyenda i.sup{background:var(--sup)}
 
 .tablero{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); margin-top:14px; overflow:hidden}
-.tablero > header{padding:12px 14px; border-bottom:1px solid var(--line-soft)}
+.tablero > header{padding:12px 14px; border-bottom:1px solid var(--line-soft); display:flex; flex-direction:column; gap:10px}
+.buscador{width:100%; background:var(--surface); border:1px solid var(--line); border-radius:9px; padding:9px 12px; font-size:14.5px}
+.buscador:focus{border-color:var(--accent); outline:none}
 .fila-r{display:flex; gap:12px; align-items:center; padding:11px 14px; border-top:1px solid var(--line-soft); flex-wrap:wrap; width:100%; background:none; border-left:none; border-right:none; border-bottom:none; text-align:left; cursor:pointer}
 .fila-r:hover{background:var(--surface-2)}
 .fila-r .f{font-family:var(--mono); font-size:12.5px; color:var(--ink-2); min-width:104px; font-variant-numeric:tabular-nums}
@@ -775,7 +777,7 @@ const S = {
   reales: [], visitas: EJEMPLO, ejemplo: true,
   store: null, edicion: false, rol: "lector", yo: "", roster: [],
   vista: "mes", cursor: hoyISO(), personas: [], filtroRes: "", verPasadas: false, hoy: hoyISO(),
-  desde: null, soloNovedades: false, admin: false, padron: []
+  desde: null, soloNovedades: false, admin: false, padron: [], buscar: ""
 };
 
 function aplicar(filas) {
@@ -857,7 +859,7 @@ function render() {
   renderNovedades();
   if (S.vista === "mes") renderMes(evs);
   else if (S.vista === "agenda") renderAgenda(evs);
-  else if (S.vista === "resultados") renderResultados(evs);
+  else if (S.vista === "resultados") renderResultados();
   else renderTiempo(evs, S.vista === "semana" ? Array.from({ length: 7 }, (_, i) => suma(lunes(S.cursor), i)) : [S.cursor]);
   $("#leyenda").hidden = !calendario;
 
@@ -913,26 +915,41 @@ function renderAgenda(evs) {
   c.innerHTML = html;
 }
 
-function renderResultados(evs) {
-  const cuenta = (k) => evs.filter((v) => resDe(v) === k).length;
-  const f = S.filtroRes;
-  const lista = evs.filter((v) => !f || resDe(v) === f).sort((a, b) => (b.fecha + b.hora).localeCompare(a.fecha + a.hora));
-  const tog = (valor, texto, cls) => '<button type="button" class="tog ' + (cls || "") + '" data-res="' + valor + '" aria-pressed="' + (f === valor) + '">'
-    + texto + '<span class="n">' + (valor ? cuenta(valor) : evs.length) + "</span></button>";
-  const filas = lista.map((v) => {
-    const d = aDate(v.fecha);
-    return '<button type="button" class="fila-r" data-id="' + v.id + '">'
-      + '<span class="f">' + d.getDate() + " " + MES[d.getMonth()].slice(0, 3) + " " + d.getFullYear() + " · " + hhmm(v.hora) + "</span>"
-      + '<span class="ent">' + esc(v.entidad) + "</span>"
-      + '<span class="quien">' + (listaP(v.personas).join(", ") || "sin asignar") + "</span>"
-      + '<span class="der">' + chipTipo(v) + chipRes(v) + "</span></button>";
-  }).join("");
+function renderResultados() {
+  const tog = (valor, texto, cls) => '<button type="button" class="tog ' + (cls || "") + '" data-res="' + valor + '" aria-pressed="' + (S.filtroRes === valor) + '">'
+    + texto + '<span class="n" data-cuenta="' + valor + '">0</span></button>';
   const c = $("#lienzo");
   c.className = "tablero";
-  c.innerHTML = '<header><div class="toggles">'
+  c.innerHTML = '<header>'
+    + '<input type="search" id="buscar-res" class="buscador" placeholder="Buscar entidad, persona u observación…" aria-label="Buscar en los resultados" value="' + esc(S.buscar) + '">'
+    + '<div class="toggles">'
     + tog("", "Todas") + tog("pendiente", "Programadas") + tog("exitosa", "Exitosas", "ok") + tog("negada", "Se negó", "mal") + tog("reprogramado", "Reprogramadas", "rep")
-    + "</div></header>"
-    + (filas || '<p class="sin-filas">No hay inspecciones en ese estado.</p>');
+    + '</div></header><div id="filas-res"></div>';
+  $("#buscar-res").addEventListener("input", (ev) => { S.buscar = ev.target.value; pintarResultados(); });
+  pintarResultados();
+}
+
+/* Se repinta solo la lista: así el buscador no pierde el foco al escribir. */
+function pintarResultados() {
+  const q = S.buscar.trim().toLowerCase();
+  const base = visibles().filter((v) => !q
+    || ((v.entidad || "") + " " + listaP(v.personas).join(" ") + " " + (v.observaciones || "")).toLowerCase().includes(q));
+  $$("[data-cuenta]").forEach((n) => {
+    const k = n.dataset.cuenta;
+    n.textContent = k ? base.filter((v) => resDe(v) === k).length : base.length;
+  });
+  const filas = base.filter((v) => !S.filtroRes || resDe(v) === S.filtroRes)
+    .sort((a, b) => (b.fecha + b.hora).localeCompare(a.fecha + a.hora))
+    .map((v) => {
+      const d = aDate(v.fecha);
+      return '<button type="button" class="fila-r" data-id="' + v.id + '">'
+        + '<span class="f">' + d.getDate() + " " + MES[d.getMonth()].slice(0, 3) + " " + d.getFullYear() + " · " + hhmm(v.hora) + "</span>"
+        + '<span class="ent">' + esc(v.entidad) + "</span>"
+        + '<span class="quien">' + (listaP(v.personas).join(", ") || "sin asignar") + "</span>"
+        + '<span class="der">' + chipTipo(v) + chipRes(v) + "</span></button>";
+    }).join("");
+  $("#filas-res").innerHTML = filas
+    || '<p class="sin-filas">' + (q ? "Ninguna inspección coincide con «" + esc(S.buscar.trim()) + "»." : "No hay inspecciones en ese estado.") + "</p>";
 }
 
 function rotulo() {
@@ -1178,7 +1195,11 @@ $("#lienzo").addEventListener("click", (ev) => {
   }
   if (ev.target.closest("#mas-pasadas")) { S.verPasadas = !S.verPasadas; return render(); }
   const res = ev.target.closest("[data-res]");
-  if (res) { S.filtroRes = res.dataset.res; return render(); }
+  if (res) {
+    S.filtroRes = res.dataset.res;
+    $$("[data-res]").forEach((t) => t.setAttribute("aria-pressed", String(t.dataset.res === S.filtroRes)));
+    return pintarResultados();
+  }
   const b = ev.target.closest("[data-id]");
   if (b) { const v = S.visitas.find((x) => x.id === b.dataset.id); if (v) abrir(v); return; }
   if (!puedeTodo()) return;
@@ -1308,7 +1329,11 @@ function libroExcel(evs) {
 }
 
 async function descargarExcel() {
-  const evs = visibles().filter((v) => S.vista !== "resultados" || !S.filtroRes || resDe(v) === S.filtroRes);
+  const q = S.buscar.trim().toLowerCase();
+  const evs = visibles()
+    .filter((v) => S.vista !== "resultados" || !S.filtroRes || resDe(v) === S.filtroRes)
+    .filter((v) => S.vista !== "resultados" || !q
+      || ((v.entidad || "") + " " + listaP(v.personas).join(" ") + " " + (v.observaciones || "")).toLowerCase().includes(q));
   if (!evs.length) return toast("No hay inspecciones que exportar con los filtros actuales.");
   const bytes = libroExcel(evs);
   const nombre = "inspecciones-" + hoyISO() + ".xlsx";
