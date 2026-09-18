@@ -254,6 +254,7 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
    medio se distingue; una mitad y mitad simple se ve como un color solo. */
 .pt.amb,.leyenda i.amb{background:linear-gradient(135deg,var(--edif) 0 46%,#fff 46% 54%,var(--sup) 54% 100%)}
 .pista{margin:5px 0 0; font-size:12px; color:var(--ink-2)}
+#pie-version{opacity:.55}
 .leyenda i.edif{background:var(--edif)} .leyenda i.sup{background:var(--sup)}
 
 .tablero{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); margin-top:14px; overflow:hidden}
@@ -469,7 +470,7 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
     <span><i class="sup"></i> Infraestructura de superficies</span>
     <span><i class="amb"></i> Ambas</span>
   </div>
-  <p class="pie"><span id="pie-fuente">—</span><span id="pie-cuenta"></span></p>
+  <p class="pie"><span id="pie-fuente">—</span><span id="pie-cuenta"></span><span id="pie-version" title="Versión de la app y estado del padrón"></span></p>
 </main>
 
 <button class="fab" id="fab" hidden aria-label="Programar visita">+</button>
@@ -814,6 +815,7 @@ const HAY_SERVIDOR = !!(CONFIG.supabase.url && CONFIG.supabase.anonKey);
 /* La última agenda recibida queda guardada en el propio dispositivo, para
    pintarla al instante en la siguiente apertura mientras llega la de verdad.
    Si el acceso es privado, solo se usa con sesión abierta.                 */
+const VERSION = "2026.09.18";   /* se muestra en el pie, para saber qué versión corre cada aparato */
 const CACHE = "agenda-cache-v1";
 function leerCache() {
   if (!HAY_SERVIDOR) return null;
@@ -969,6 +971,11 @@ function render() {
   $("#pie-fuente").textContent = S.deCache ? "Actualizando…" : "Datos: " + (S.store ? S.store.etiqueta : "cargando…");
   $("#pie-cuenta").textContent = evs.length + (evs.length === 1 ? " visita" : " visitas")
     + (S.personas.length ? " de " + S.personas.join(", ") : "") + " en total";
+  /* Para poder saber, desde el propio aparato, qué versión se está usando
+     y si el padrón llegó con la clase de obra. */
+  const conTipo = S.padron.filter((e) => TIPOS[e.tipo]).length;
+  $("#pie-version").textContent = "v" + VERSION
+    + (S.padron.length ? " · padrón " + S.padron.length + " (" + conTipo + " con tipo)" : "");
 }
 
 /* Vista de lista: la más legible en el celular — sin rejilla horaria vacía. */
