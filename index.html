@@ -734,12 +734,21 @@ async function storeSupabase(cfg) {
       return data || [];
     },
     async guardarPadron(filas, bajas) {
-      if (filas.length) {
-        const { error } = await sb.from("entidades").upsert(filas, { onConflict: "codigo" });
-        if (error) throw error;
+      /* Las que traen código se resuelven por código —así renombrar una
+         entidad actualiza su fila en vez de duplicarla—; las que no, por
+         nombre. En lotes, para no chocar con el límite de la petición. */
+      const grupos = [
+        [filas.filter((f) => f.codigo), "codigo"],
+        [filas.filter((f) => !f.codigo), "nombre"]
+      ];
+      for (const [lote, llave] of grupos) {
+        for (let i = 0; i < lote.length; i += 500) {
+          const { error } = await sb.from("entidades").upsert(lote.slice(i, i + 500), { onConflict: llave });
+          if (error) throw error;
+        }
       }
       if (bajas && bajas.length) {
-        const { error } = await sb.from("entidades").delete().in("codigo", bajas);
+        const { error } = await sb.from("entidades").delete().in("nombre", bajas);
         if (error) throw error;
       }
     },
@@ -1573,28 +1582,43 @@ function parsePadron(texto) {
   }
   if (idx.nombre < 0) idx.nombre = idx.codigo === 0 ? 1 : 0;
   if (idx.codigo < 0) idx.codigo = idx.nombre === 0 ? 1 : 0;
-  const filas = [];
+  /* Lo indispensable es el nombre: es lo que se sugiere al escribir. El
+     código puede faltar —no toda entidad lo tiene— y cuando viene con un
+     salto de línea son dos códigos de la misma entidad.                */
+  const limpiar = (x) => String(x || "").replace(/\s+/g, " ").trim();
+  const filas = [], vistos = new Set();
   for (let i = 1; i < lineas.length; i++) {
     const c = fila(lineas[i]);
-    const codigo = (c[idx.codigo] || "").trim();
-    const nombre = (c[idx.nombre] || "").trim();
-    if (!codigo || !nombre) continue;
-    filas.push({ codigo, nombre, ubicacion: idx.ubicacion >= 0 ? (c[idx.ubicacion] || "").trim() : "" });
+    const nombre = limpiar(c[idx.nombre]);
+    let codigo = limpiar(c[idx.codigo]);
+    if (codigo === "-" || codigo === "--" || /^n\/?a$/i.test(codigo)) codigo = "";
+    if (!nombre) continue;
+    const llave = nombre.toLowerCase();
+    if (vistos.has(llave)) continue;          /* una entidad, una sugerencia */
+    vistos.add(llave);
+    filas.push({ codigo, nombre, ubicacion: idx.ubicacion >= 0 ? limpiar(c[idx.ubicacion]) : "" });
   }
   return filas;
 }
 
+/* Para saber qué cambió hay que emparejar cada fila del archivo con la
+   que ya está guardada. Se empareja primero por código —así, corregir el
+   nombre de una entidad con código se ve como un cambio y no como una
+   baja seguida de un alta— y las que no tienen código, por nombre.      */
+const porNombre = (e) => String(e.nombre || "").toLowerCase();
 function compararPadron(nuevas) {
-  const actual = new Map(S.padron.map((e) => [e.codigo, e]));
-  const vistos = new Set();
+  const deCodigo = new Map(S.padron.filter((e) => e.codigo).map((e) => [e.codigo, e]));
+  const deNombre = new Map(S.padron.map((e) => [porNombre(e), e]));
+  const usados = new Set();
   const altas = [], cambios = [];
+  const iguales = (a, n) => a.nombre === n.nombre && (a.codigo || "") === (n.codigo || "") && (a.ubicacion || "") === (n.ubicacion || "");
   nuevas.forEach((n) => {
-    vistos.add(n.codigo);
-    const a = actual.get(n.codigo);
-    if (!a) altas.push(n);
-    else if (a.nombre !== n.nombre || (a.ubicacion || "") !== (n.ubicacion || "")) cambios.push({ antes: a, ahora: n });
+    const a = (n.codigo && deCodigo.get(n.codigo)) || deNombre.get(porNombre(n));
+    if (!a) { altas.push(n); return; }
+    usados.add(a);
+    if (!iguales(a, n)) cambios.push({ antes: a, ahora: n });
   });
-  const bajas = S.padron.filter((e) => !vistos.has(e.codigo));
+  const bajas = S.padron.filter((e) => !usados.has(e));
   return { altas, cambios, bajas };
 }
 
@@ -1619,19 +1643,20 @@ $("#ad-revisar").addEventListener("click", async () => {
   if (!texto && f) texto = await f.text();
   const filas = parsePadron(texto);
   if (!filas.length) {
-    $("#ad-resumen").innerHTML = '<p class="ayuda">No se reconocieron filas. La primera línea debe ser el encabezado, con una columna de código y otra de entidad.</p>';
+    $("#ad-resumen").innerHTML = '<p class="ayuda">No se reconocieron filas. La primera línea debe ser el encabezado y tiene que haber una columna con el nombre de la entidad.</p>';
     $("#ad-aplicar").hidden = true;
     return;
   }
   const d = compararPadron(filas);
-  padronPropuesto = { filas, bajas: d.bajas.map((e) => e.codigo) };
+  padronPropuesto = { filas, bajas: d.bajas.map((e) => e.nombre) };
   const linea = (cls, etq, txt) => '<div class="dif"><b class="' + cls + '">' + etq + "</b><span>" + esc(txt) + "</span></div>";
+  const rotularE = (e) => (e.codigo ? e.codigo + " · " : "") + e.nombre;
   $("#ad-resumen").innerHTML =
     '<p class="ayuda"><b>' + filas.length + "</b> entidades en el archivo · "
     + d.altas.length + " nuevas · " + d.cambios.length + " con cambios · " + d.bajas.length + " que ya no figuran.</p>"
-    + d.altas.slice(0, 8).map((e) => linea("alta", "nueva", e.codigo + " · " + e.nombre)).join("")
-    + d.cambios.slice(0, 8).map((c) => linea("cambio", "cambia", c.antes.nombre + "  →  " + c.ahora.nombre)).join("")
-    + d.bajas.slice(0, 8).map((e) => linea("baja", "ya no", e.codigo + " · " + e.nombre)).join("")
+    + d.altas.slice(0, 8).map((e) => linea("alta", "nueva", rotularE(e))).join("")
+    + d.cambios.slice(0, 8).map((c) => linea("cambio", "cambia", rotularE(c.antes) + "  →  " + rotularE(c.ahora))).join("")
+    + d.bajas.slice(0, 8).map((e) => linea("baja", "ya no", rotularE(e))).join("")
     + ((d.altas.length + d.cambios.length + d.bajas.length) > 24 ? '<p class="ayuda">…y más. Se aplicarán todas.</p>' : "");
   $("#ad-aplicar").hidden = false;
 });

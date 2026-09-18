@@ -31,16 +31,23 @@ $$;
 
 -- ------------------------------------------------------------------
 -- 2. Padrón de entidades
---    El código es la llave: es lo que enlaza con la carpeta de fotos.
+--    La llave es el NOMBRE, no el código: en el padrón de trabajo hay
+--    entidades sin código (empresas de servicios, entidades del Estado,
+--    titulares recién agregados). El código, cuando existe, es lo que
+--    enlaza con la carpeta de fotos, y ahí sí no puede repetirse.
 -- ------------------------------------------------------------------
 create table if not exists public.entidades (
-  codigo         text primary key,
+  id             bigint generated always as identity primary key,
   nombre         text not null,
+  codigo         text not null default '',
   ubicacion      text not null default '',
   actualizado_en timestamptz not null default now()
 );
 
-create index if not exists entidades_nombre_idx on public.entidades (nombre);
+-- Una entidad, una fila: el nombre no se repite (sin distinguir mayúsculas).
+create unique index if not exists entidades_nombre_uniq on public.entidades (lower(nombre));
+-- El código sí puede quedar vacío, pero si está, es único.
+create unique index if not exists entidades_codigo_uniq on public.entidades (codigo) where codigo <> '';
 
 drop trigger if exists entidades_actualizado on public.entidades;
 create trigger entidades_actualizado before update on public.entidades
