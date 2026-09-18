@@ -34,6 +34,20 @@ qué entra, qué cambia y qué sale.
   luego por nombre. Así, corregir el nombre de una entidad con código se
   registra como un cambio y no como una baja seguida de un alta.
 
+## Cómo se busca una entidad
+
+El campo Entidad **no** usa la lista desplegable del navegador: esa solo
+compara contra el comienzo del nombre y en iPhone casi no aparece. La agenda
+arma su propio buscador, que encuentra por partes.
+
+Escribir `salon belleza` encuentra
+`MIRELLA DEL ROCIO GIRON CRUZ SALON DE BELLEZA UNISEX...`, porque todas las
+palabras escritas deben aparecer en algún lugar del nombre, en cualquier
+orden, sin distinguir tildes ni mayúsculas. También busca por código.
+
+Esto importa porque el equipo conoce a los titulares por su nombre de campo
+y el padrón los guarda por su razón social.
+
 ## Para qué sirve el tipo
 
 Al elegir la entidad en el formulario, el tipo de infraestructura se propone

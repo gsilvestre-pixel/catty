@@ -255,6 +255,22 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
 .pt.amb,.leyenda i.amb{background:linear-gradient(135deg,var(--edif) 0 46%,#fff 46% 54%,var(--sup) 54% 100%)}
 .pista{margin:5px 0 0; font-size:12px; color:var(--ink-2)}
 #pie-version{opacity:.55}
+
+/* Buscador del campo Entidad. La lista nativa del navegador solo compara
+   contra el comienzo del nombre —y en iPhone casi no aparece—, así que la
+   agenda arma la suya: encuentra por partes y funciona igual en todos. */
+.con-sug{position:relative}
+.sugeridor{position:absolute; z-index:40; top:100%; left:0; right:0; margin-top:4px;
+  max-height:min(46vh,300px); overflow-y:auto; -webkit-overflow-scrolling:touch;
+  background:var(--surface); border:1px solid var(--line); border-radius:12px;
+  box-shadow:0 12px 30px rgba(0,0,0,.14)}
+.sugeridor .op{display:block; width:100%; text-align:left; padding:10px 12px; border:0;
+  background:none; font:inherit; font-size:14px; color:var(--ink); cursor:pointer; line-height:1.35}
+.sugeridor .op + .op{border-top:1px solid var(--line)}
+.sugeridor .op:hover,.sugeridor .op[aria-selected="true"]{background:var(--accent-soft)}
+.sugeridor .op b{color:var(--accent-ink); font-weight:700}
+.sugeridor .op .cod{display:block; font-size:11.5px; color:var(--ink-3); font-family:var(--mono)}
+.sugeridor .nada{padding:10px 12px; font-size:13px; color:var(--ink-3)}
 .leyenda i.edif{background:var(--edif)} .leyenda i.sup{background:var(--sup)}
 
 .tablero{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); margin-top:14px; overflow:hidden}
@@ -484,7 +500,6 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
     <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><path d="M6.5 10.2l2.4 2.4 4.6-4.9"/></svg>Resultados</button>
 </nav>
 
-<datalist id="lista-entidades"></datalist>
 <datalist id="lista-personas"></datalist>
 
 <dialog id="dlg-admin">
@@ -542,9 +557,12 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
   <form method="dialog" id="form">
     <header><h2 id="dlg-titulo">Nueva visita</h2></header>
     <div class="cuerpo">
-      <div class="campo">
+      <div class="campo con-sug">
         <label for="f-entidad">Entidad</label>
-        <input type="text" id="f-entidad" list="lista-entidades" required maxlength="160" placeholder="Nombre de la entidad">
+        <input type="text" id="f-entidad" required maxlength="160" placeholder="Escribe parte del nombre"
+               autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
+               role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="sug-entidad">
+        <div class="sugeridor" id="sug-entidad" role="listbox" aria-label="Entidades del padrón" hidden></div>
       </div>
       <div class="fila">
         <div class="campo">
@@ -918,7 +936,70 @@ function pintarSugerencias() {
   if (!sugPendientes) return;
   sugPendientes = false;
   $("#lista-personas").innerHTML = personas().map((p) => '<option value="' + esc(p) + '"></option>').join("");
-  $("#lista-entidades").innerHTML = entidades().map((e) => '<option value="' + esc(e) + '"></option>').join("");
+  /* Índice del buscador de entidades: el nombre tal cual, más su forma
+     comparable (sin tildes ni signos) para buscar por partes. */
+  const codigos = new Map(S.padron.map((e) => [e.nombre, e.codigo || ""]));
+  INDICE = entidades().map((nombre) => ({ nombre, cmp: comparable(nombre), codigo: codigos.get(nombre) || "" }));
+}
+
+/* Para comparar escriba quien escriba: sin tildes, sin signos, en minúscula. */
+function comparable(x) {
+  return String(x || "").toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9ñ]+/g, " ").trim();
+}
+let INDICE = [];
+
+/* Busca por partes: todas las palabras escritas deben aparecer en algún
+   lugar del nombre, en cualquier orden. "salon belleza" encuentra
+   "MIRELLA DEL ROCIO GIRON CRUZ SALON DE BELLEZA UNISEX".               */
+function buscarEntidades(texto, tope) {
+  const q = comparable(texto);
+  if (!q) return INDICE.slice(0, tope);
+  const palabras = q.split(" ").filter(Boolean);
+  const hallados = [];
+  for (const e of INDICE) {
+    if (!palabras.every((w) => e.cmp.includes(w) || e.codigo.toLowerCase().includes(w))) continue;
+    const donde = e.cmp.indexOf(palabras[0]);
+    /* Primero lo que empieza igual, luego lo que lo trae más al principio. */
+    hallados.push({ e, peso: (e.cmp === q ? -2 : e.cmp.startsWith(q) ? -1 : 0), donde: donde < 0 ? 999 : donde });
+  }
+  hallados.sort((a, b) => a.peso - b.peso || a.donde - b.donde || a.e.nombre.localeCompare(b.e.nombre, "es"));
+  return hallados.slice(0, tope).map((h) => h.e);
+}
+
+/* Igual que comparable(), pero letra por letra: conserva la longitud, que
+   es lo que permite marcar los tramos sobre el nombre original. */
+function comparablePos(x) {
+  const t = String(x || "");
+  let out = "";
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").charAt(0);
+    out += /[a-z0-9ñ]/.test(c) ? c : " ";
+  }
+  return out;
+}
+
+/* Resalta en el resultado los pedazos que la persona escribió. */
+function resaltar(nombre, texto) {
+  const palabras = comparable(texto).split(" ").filter(Boolean);
+  if (!palabras.length) return esc(nombre);
+  const cmp = comparablePos(nombre);
+  const marca = new Array(nombre.length).fill(false);
+  for (const w of palabras) {
+    let i = cmp.indexOf(w);
+    while (i >= 0) {
+      for (let k = i; k < i + w.length && k < marca.length; k++) marca[k] = true;
+      i = cmp.indexOf(w, i + w.length);
+    }
+  }
+  let out = "", abierto = false;
+  for (let i = 0; i < nombre.length; i++) {
+    if (marca[i] && !abierto) { out += "<b>"; abierto = true; }
+    if (!marca[i] && abierto) { out += "</b>"; abierto = false; }
+    out += esc(nombre[i]);
+  }
+  return out + (abierto ? "</b>" : "");
 }
 
 /* Novedades: lo creado o modificado desde la última vez que se abrió la
@@ -1262,6 +1343,7 @@ function abrir(v, fecha, hora) {
   $("#emojis").hidden = ro;
   tipoATuGusto = !!v;    /* en una visita guardada manda lo guardado */
   $("#pista-tipo").hidden = true;
+  cerrarSug();
   pintarSugerencias();   /* por si el rato libre aún no llegó */
   $("#dlg").showModal();
 }
@@ -1282,9 +1364,68 @@ function proponerTipo() {
   $("#f-tipo").value = t;
   $("#pista-tipo").hidden = false;
 }
-$("#f-entidad").addEventListener("input", proponerTipo);
-$("#f-entidad").addEventListener("change", proponerTipo);
 $("#f-tipo").addEventListener("change", () => { tipoATuGusto = true; $("#pista-tipo").hidden = true; });
+
+/* ---------- buscador del campo Entidad ----------
+   Escribir cualquier parte del nombre basta: el equipo conoce a los
+   titulares por su nombre de campo ("salón de belleza") y el padrón los
+   guarda por su razón social ("MIRELLA ... SALON DE BELLEZA UNISEX").   */
+const TOPE_SUG = 40;
+const cajaEnt = $("#f-entidad"), listaEnt = $("#sug-entidad");
+let marcado = -1;
+
+function cerrarSug() {
+  listaEnt.hidden = true; listaEnt.innerHTML = ""; marcado = -1;
+  cajaEnt.setAttribute("aria-expanded", "false");
+}
+function abrirSug() {
+  if (cajaEnt.readOnly || !INDICE.length) return cerrarSug();
+  const hallados = buscarEntidades(cajaEnt.value, TOPE_SUG);
+  if (!hallados.length) {
+    listaEnt.innerHTML = '<p class="nada">Ninguna entidad del padrón coincide. Puedes escribir el nombre igual.</p>';
+  } else {
+    listaEnt.innerHTML = hallados.map((e, i) =>
+      '<button type="button" class="op" role="option" aria-selected="false" data-i="' + i + '" data-nombre="' + esc(e.nombre) + '">'
+      + resaltar(e.nombre, cajaEnt.value)
+      + (e.codigo ? '<span class="cod">' + esc(e.codigo) + "</span>" : "")
+      + "</button>").join("");
+  }
+  listaEnt.hidden = false; marcado = -1;
+  cajaEnt.setAttribute("aria-expanded", "true");
+}
+function mover(paso) {
+  const ops = listaEnt.querySelectorAll(".op");
+  if (!ops.length) return;
+  if (marcado >= 0) ops[marcado].setAttribute("aria-selected", "false");
+  marcado = (marcado + paso + ops.length) % ops.length;
+  ops[marcado].setAttribute("aria-selected", "true");
+  ops[marcado].scrollIntoView({ block: "nearest" });
+}
+function elegir(nombre) {
+  cajaEnt.value = nombre;
+  cerrarSug();
+  proponerTipo();
+}
+
+cajaEnt.addEventListener("input", () => { abrirSug(); proponerTipo(); });
+cajaEnt.addEventListener("focus", abrirSug);
+cajaEnt.addEventListener("change", proponerTipo);
+/* mousedown/touchstart, no click: el campo pierde el foco antes del click. */
+listaEnt.addEventListener("mousedown", (ev) => {
+  const op = ev.target.closest(".op");
+  if (!op) return;
+  ev.preventDefault();
+  elegir(op.dataset.nombre);
+});
+cajaEnt.addEventListener("keydown", (ev) => {
+  if (ev.key === "ArrowDown") { ev.preventDefault(); if (listaEnt.hidden) abrirSug(); else mover(1); }
+  else if (ev.key === "ArrowUp") { ev.preventDefault(); mover(-1); }
+  else if (ev.key === "Enter" && !listaEnt.hidden && marcado >= 0) {
+    ev.preventDefault();
+    elegir(listaEnt.querySelectorAll(".op")[marcado].dataset.nombre);
+  } else if (ev.key === "Escape" && !listaEnt.hidden) { ev.stopPropagation(); cerrarSug(); }
+});
+cajaEnt.addEventListener("blur", () => setTimeout(cerrarSug, 120));
 
 $("#f-cancelar").addEventListener("click", () => $("#dlg").close());
 $("#form").addEventListener("submit", async (ev) => {
