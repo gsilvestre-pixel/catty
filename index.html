@@ -806,7 +806,17 @@ function guardarCache(visitas) {
   if (!HAY_SERVIDOR) return;
   try { localStorage.setItem(CACHE, JSON.stringify({ url: CONFIG.supabase.url, visitas, ts: Date.now() })); } catch (e) {}
 }
-function olvidarCache() { try { localStorage.removeItem(CACHE); } catch (e) {} }
+function olvidarCache() { try { localStorage.removeItem(CACHE); localStorage.removeItem(CACHE_PADRON); } catch (e) {} }
+
+/* El padrón cambia poco: se guarda aparte para tenerlo al instante. */
+const CACHE_PADRON = "agenda-padron-v1";
+function leerPadronCache() {
+  try { const c = JSON.parse(localStorage.getItem(CACHE_PADRON) || "null"); return Array.isArray(c) ? c : null; }
+  catch (e) { return null; }
+}
+function guardarPadronCache(filas) {
+  try { localStorage.setItem(CACHE_PADRON, JSON.stringify(filas)); } catch (e) {}
+}
 const S = {
   reales: [], visitas: HAY_SERVIDOR ? [] : EJEMPLO, ejemplo: !HAY_SERVIDOR, cargando: HAY_SERVIDOR, deCache: false,
   store: null, edicion: false, rol: "lector", yo: "", roster: [],
@@ -864,6 +874,25 @@ const entidades = () => Array.from(new Set(
     S.padron.map((e) => e.nombre).concat(S.visitas.map((v) => v.entidad)).filter(Boolean)
   )).sort((a, b) => a.localeCompare(b, "es"));
 
+/* Las sugerencias de los formularios (padrón de entidades y personas) solo
+   hacen falta cuando alguien abre una visita, y con un padrón grande armar
+   la lista cuesta. Así que se marcan como pendientes y se arman en un rato
+   libre del navegador, o al abrir el formulario si todavía no estaban. */
+let ultPadron = null, ultVisitas = null, sugPendientes = true;
+const enRatoLibre = (f) => (window.requestIdleCallback ? requestIdleCallback(f, { timeout: 2000 }) : setTimeout(f, 300));
+function marcarSugerencias() {
+  if (S.padron === ultPadron && S.visitas === ultVisitas) return;
+  ultPadron = S.padron; ultVisitas = S.visitas;
+  sugPendientes = true;
+  enRatoLibre(pintarSugerencias);
+}
+function pintarSugerencias() {
+  if (!sugPendientes) return;
+  sugPendientes = false;
+  $("#lista-personas").innerHTML = personas().map((p) => '<option value="' + esc(p) + '"></option>').join("");
+  $("#lista-entidades").innerHTML = entidades().map((e) => '<option value="' + esc(e) + '"></option>').join("");
+}
+
 /* Novedades: lo creado o modificado desde la última vez que se abrió la
    agenda en este dispositivo. */
 const esNueva = (v) => !!(S.desde && v.creado_en && v.creado_en > S.desde);
@@ -892,8 +921,7 @@ function render() {
     ? gente.map((p) => '<button type="button" class="tog" data-persona="' + esc(p) + '" aria-pressed="' + S.personas.includes(p) + '">' + esc(p) + "</button>").join("")
       + (S.personas.length ? '<button type="button" class="tog" id="limpiar-personas">Ver a todos</button>' : "")
     : '<span class="ayuda">Todavía no hay personas asignadas a ninguna inspección.</span>');
-  $("#lista-personas").innerHTML = gente.map((p) => '<option value="' + esc(p) + '"></option>').join("");
-  $("#lista-entidades").innerHTML = entidades().map((e) => '<option value="' + esc(e) + '"></option>').join("");
+  marcarSugerencias();
 
   renderAviso();
   renderNovedades();
@@ -1199,6 +1227,7 @@ function abrir(v, fecha, hora) {
   $("#f-cancelar").textContent = ro ? "Cerrar" : "Cancelar";
   $("#aviso-rol").hidden = !soloEstado;
   $("#emojis").hidden = ro;
+  pintarSugerencias();   /* por si el rato libre aún no llegó */
   $("#dlg").showModal();
 }
 $("#f-cancelar").addEventListener("click", () => $("#dlg").close());
@@ -1450,7 +1479,7 @@ async function tomarRol() {
   S.yo = rol && rol.nombre ? rol.nombre : "";
   S.admin = !!(rol && rol.admin);
   if (S.store.recargar) await S.store.recargar();
-  if (S.admin && S.store.padron) { try { S.padron = await S.store.padron(); } catch (e) {} }
+  if (S.admin && S.store.padron) { try { S.padron = await S.store.padron(); guardarPadronCache(S.padron); } catch (e) {} }
   render();
   return S.rol;
 }
@@ -1596,6 +1625,7 @@ $("#form-admin").addEventListener("submit", async (ev) => {
   try {
     await S.store.guardarPadron(padronPropuesto.filas, bajas);
     S.padron = await S.store.padron();
+    guardarPadronCache(S.padron);
     $("#dlg-admin").close();
     toast("Padrón actualizado: " + S.padron.length + " entidades.");
     render();
@@ -1721,6 +1751,8 @@ document.addEventListener("keydown", (ev) => {
 /* ---------------------- arranque ---------------------- */
 (async function iniciar() {
   try { S.desde = localStorage.getItem("agenda-visto") || null; } catch (e) {}
+  const guardadas = leerPadronCache();
+  if (guardadas && guardadas.length) S.padron = guardadas;
   const previas = leerCache();
   if (previas && previas.length) { S.visitas = previas; S.cargando = false; S.deCache = true; }
   let guardado = "mango";
@@ -1737,7 +1769,12 @@ document.addEventListener("keydown", (ev) => {
   if (!store) store = storeLocal();
   S.store = store;
   if (store.roster) { try { S.roster = await store.roster(); } catch (e) { console.warn(e); } }
-  if (store.padron) { try { S.padron = await store.padron(); } catch (e) { console.warn(e); } }
+  /* El padrón no debe demorar la llegada de las visitas: se pide aparte. */
+  if (store.padron) {
+    store.padron().then((filas) => {
+      if (filas && filas.length) { S.padron = filas; guardarPadronCache(filas); render(); }
+    }).catch((e) => console.warn("padrón:", e.message || e));
+  }
   store.escucha(aplicar);
   render();
   /* La próxima vez, "novedades" se cuenta desde este momento. */
