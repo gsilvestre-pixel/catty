@@ -68,6 +68,8 @@ $$;
 create table if not exists public.visitas (
   id             uuid primary key default gen_random_uuid(),
   entidad        text not null,
+  -- código del predio en el padrón, cuando la entidad lo tiene
+  codigo         text not null default '',
   fecha          date not null,
   hora           time not null,
   -- clase de obra: 'edificaciones' (morado), 'superficies' (verde) o
@@ -83,6 +85,7 @@ create table if not exists public.visitas (
 );
 
 create index if not exists visitas_fecha_idx    on public.visitas (fecha);
+create index if not exists visitas_codigo_idx   on public.visitas (codigo) where codigo <> '';
 create index if not exists visitas_estado_idx   on public.visitas (estado);
 create index if not exists visitas_tipo_idx     on public.visitas (tipo);
 create index if not exists visitas_personas_idx on public.visitas using gin (personas);
@@ -109,6 +112,7 @@ begin
     return new;
   end if;
   if new.entidad  is distinct from old.entidad
+  or new.codigo   is distinct from old.codigo
   or new.fecha    is distinct from old.fecha
   or new.hora     is distinct from old.hora
   or new.tipo     is distinct from old.tipo

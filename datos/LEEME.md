@@ -48,6 +48,18 @@ orden, sin distinguir tildes ni mayúsculas. También busca por código.
 Esto importa porque el equipo conoce a los titulares por su nombre de campo
 y el padrón los guarda por su razón social.
 
+## El código del predio
+
+El código viaja con la visita: al elegir la entidad se toma del padrón y
+queda escrito en el registro, de modo que si mañana el padrón cambia o la
+entidad se renombra, lo inspeccionado ese día sigue siendo lo que fue. Las
+visitas programadas antes de la migración 06 lo deducen del padrón por el
+nombre de la entidad.
+
+Se ve bajo el nombre en la agenda y en Resultados, en el rótulo del
+calendario, en el formulario y en la columna Código del Excel. También se
+puede buscar por él.
+
 ## Para qué sirve el tipo
 
 Al elegir la entidad en el formulario, el tipo de infraestructura se propone

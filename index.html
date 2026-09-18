@@ -271,6 +271,10 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
 .sugeridor .op b{color:var(--accent-ink); font-weight:700}
 .sugeridor .op .cod{display:block; font-size:11.5px; color:var(--ink-3); font-family:var(--mono)}
 .sugeridor .nada{padding:10px 12px; font-size:13px; color:var(--ink-3)}
+
+/* Código del predio: discreto, pero siempre a la vista junto a la entidad. */
+.cod-pr{display:block; font-family:var(--mono); font-size:11.5px; color:var(--ink-3); font-weight:400; margin-top:2px}
+.fila-r .ent .cod-pr{margin-top:1px}
 .leyenda i.edif{background:var(--edif)} .leyenda i.sup{background:var(--sup)}
 
 .tablero{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); margin-top:14px; overflow:hidden}
@@ -563,6 +567,7 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
                autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
                role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="sug-entidad">
         <div class="sugeridor" id="sug-entidad" role="listbox" aria-label="Entidades del padrón" hidden></div>
+        <p class="ayuda pista" id="cod-entidad" hidden></p>
       </div>
       <div class="fila">
         <div class="campo">
@@ -705,7 +710,7 @@ async function storeSupabase(cfg) {
   await cargarScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js");
   const sb = window.supabase.createClient(cfg.url, cfg.anonKey);
   let alCambiar = null;
-  const deFila = (r) => ({ ...r, hora: hhmm(r.hora), personas: listaP(r.personas), tipo: r.tipo || "", estado: r.estado || "", observaciones: r.observaciones || "" });
+  const deFila = (r) => ({ ...r, hora: hhmm(r.hora), personas: listaP(r.personas), codigo: r.codigo || "", tipo: r.tipo || "", estado: r.estado || "", observaciones: r.observaciones || "" });
   const aFila = (o) => ({ ...o, tipo: o.tipo || null, estado: o.estado || null });
   const ids = new Set();
   /* Devuelve null si la consulta falla: así un error de red no vacía lo
@@ -908,6 +913,17 @@ const chipRes = (v) => '<span class="chip ' + claseRes(v) + '">' + ROTULO_RES[re
 /* Quién puede qué: el editor administra la agenda completa; el inspector
    solo cambia el estado y las observaciones de las visitas que tiene
    asignadas, identificándose con su correo.                              */
+/* Código del predio. La visita lo guarda al programarse; las que se
+   programaron antes de tenerlo lo deducen del padrón por el nombre. */
+const codigoDelPadron = (nombre) => {
+  const n = String(nombre || "").trim().toLowerCase();
+  if (!n) return "";
+  const e = S.padron.find((x) => String(x.nombre || "").trim().toLowerCase() === n);
+  return e ? (e.codigo || "") : "";
+};
+const codigoDe = (v) => String(v.codigo || "").trim() || codigoDelPadron(v.entidad);
+const marcaCod = (v, cls) => { const c = codigoDe(v); return c ? '<span class="' + (cls || "cod-pr") + '">' + esc(c) + "</span>" : ""; };
+
 const puedeTodo = () => S.edicion && S.rol === "editor";
 const puedeEstado = (v) => S.edicion && (S.rol === "editor" || (S.rol === "inspector" && listaP(v.personas).includes(S.yo)));
 const personas = () => {
@@ -1087,7 +1103,7 @@ function renderAgenda(evs) {
       html += '<div class="ag-item ' + claseRes(v) + (esNueva(v) || esCambiada(v) ? " novedad" : "") + '">'
         + '<button type="button" class="ag-abrir" data-id="' + v.id + '">'
         + '<span class="ag-hora">' + hhmm(v.hora) + "</span>"
-        + '<span class="ag-cuerpo"><b>' + esc(v.entidad) + "</b>"
+        + '<span class="ag-cuerpo"><b>' + esc(v.entidad) + "</b>" + marcaCod(v)
         + (tipoDe(v) ? '<small style="margin-top:4px">' + chipTipo(v) + "</small>" : "")
         + (gente.length ? "<small>" + esc(gente.join(", ")) + "</small>" : '<small>Sin personas asignadas</small>')
         + (v.observaciones ? "<small>" + esc(v.observaciones) + "</small>" : "")
@@ -1112,7 +1128,7 @@ function renderResultados() {
   const c = $("#lienzo");
   c.className = "tablero";
   c.innerHTML = '<header>'
-    + '<input type="search" id="buscar-res" class="buscador" placeholder="Buscar entidad, persona u observación…" aria-label="Buscar en los resultados" value="' + esc(S.buscar) + '">'
+    + '<input type="search" id="buscar-res" class="buscador" placeholder="Buscar entidad, código, persona u observación…" aria-label="Buscar en los resultados" value="' + esc(S.buscar) + '">'
     + '<div class="toggles">'
     + tog("", "Todas") + tog("pendiente", "Programadas") + tog("exitosa", "Exitosas", "ok") + tog("negada", "Se negó", "mal") + tog("reprogramado", "Reprogramadas", "rep")
     + '</div></header><div id="filas-res"></div>';
@@ -1124,7 +1140,7 @@ function renderResultados() {
 function pintarResultados() {
   const q = S.buscar.trim().toLowerCase();
   const base = visibles().filter((v) => !q
-    || ((v.entidad || "") + " " + listaP(v.personas).join(" ") + " " + (v.observaciones || "")).toLowerCase().includes(q));
+    || ((v.entidad || "") + " " + codigoDe(v) + " " + listaP(v.personas).join(" ") + " " + (v.observaciones || "")).toLowerCase().includes(q));
   $$("[data-cuenta]").forEach((n) => {
     const k = n.dataset.cuenta;
     n.textContent = k ? base.filter((v) => resDe(v) === k).length : base.length;
@@ -1135,7 +1151,7 @@ function pintarResultados() {
       const d = aDate(v.fecha);
       return '<button type="button" class="fila-r" data-id="' + v.id + '">'
         + '<span class="f">' + d.getDate() + " " + MES[d.getMonth()].slice(0, 3) + " " + d.getFullYear() + " · " + hhmm(v.hora) + "</span>"
-        + '<span class="ent">' + esc(v.entidad) + "</span>"
+        + '<span class="ent">' + esc(v.entidad) + marcaCod(v) + "</span>"
         + '<span class="quien">' + (listaP(v.personas).join(", ") || "sin asignar") + "</span>"
         + '<span class="der">' + chipTipo(v) + chipRes(v) + "</span></button>";
     }).join("");
@@ -1186,7 +1202,10 @@ function renderAviso() {
   } else c.innerHTML = "";
 }
 
+/* En el calendario solo cabe una línea, así que el código va en el rótulo
+   que aparece al posar el puntero; completo se ve al abrir la visita. */
 const chipEv = (v) => '<button class="ev ' + claseRes(v) + '" data-id="' + v.id + '" title="'
+  + (codigoDe(v) ? esc(codigoDe(v)) + " · " : "")
   + (tipoDe(v) ? TIPOS[v.tipo].largo + " · " : "") + ROTULO_RES[resDe(v)] + " · " + esc(v.entidad)
   + (listaP(v.personas).length ? " · " + esc(listaP(v.personas).join(", ")) : "") + '">'
   + puntoTipo(v) + "<b>" + hhmm(v.hora) + "</b>" + esc(v.entidad) + "</button>";
@@ -1343,14 +1362,16 @@ function abrir(v, fecha, hora) {
   $("#emojis").hidden = ro;
   tipoATuGusto = !!v;    /* en una visita guardada manda lo guardado */
   $("#pista-tipo").hidden = true;
+  codigoElegido = v ? codigoDe(v) : "";
   cerrarSug();
+  pintarCodigo();
   pintarSugerencias();   /* por si el rato libre aún no llegó */
   $("#dlg").showModal();
 }
 /* El padrón sabe qué clase de obra tiene cada titular, así que al elegir
    la entidad se propone el tipo. Es solo una propuesta: en cuanto alguien
    lo cambia a mano, deja de tocarse.                                     */
-let tipoATuGusto = false;
+let tipoATuGusto = false, codigoElegido = "";
 const tipoDelPadron = (nombre) => {
   const n = String(nombre || "").trim().toLowerCase();
   if (!n) return "";
@@ -1403,11 +1424,22 @@ function mover(paso) {
 }
 function elegir(nombre) {
   cajaEnt.value = nombre;
+  codigoElegido = codigoDelPadron(nombre);
   cerrarSug();
   proponerTipo();
+  pintarCodigo();
+}
+/* El código que se va a guardar, a la vista bajo el campo. */
+function pintarCodigo() {
+  const c = codigoElegido || codigoDelPadron(cajaEnt.value);
+  $("#cod-entidad").textContent = c ? "Código del predio: " + c : "";
+  $("#cod-entidad").hidden = !c;
 }
 
-cajaEnt.addEventListener("input", () => { abrirSug(); proponerTipo(); });
+cajaEnt.addEventListener("input", () => {
+  codigoElegido = "";          /* si se vuelve a escribir, el código se recalcula */
+  abrirSug(); proponerTipo(); pintarCodigo();
+});
 cajaEnt.addEventListener("focus", abrirSug);
 cajaEnt.addEventListener("change", proponerTipo);
 /* mousedown/touchstart, no click: el campo pierde el foco antes del click. */
@@ -1437,6 +1469,7 @@ $("#form").addEventListener("submit", async (ev) => {
     : {
         id: editando ? editando.id : uid(),
         entidad: $("#f-entidad").value.trim(),
+        codigo: codigoElegido || codigoDelPadron($("#f-entidad").value),
         fecha: $("#f-fecha").value,
         hora: $("#f-hora").value,
         personas: chipsGet(),
@@ -1539,11 +1572,11 @@ function zip(archivos) {
 
 /* Excel cuenta los días desde el 30/12/1899 */
 const serieExcel = (f) => { const [a, m, d] = f.split("-").map(Number); return Math.round((Date.UTC(a, m - 1, d) - Date.UTC(1899, 11, 30)) / 86400000); };
-const COL = ["A", "B", "C", "D", "E", "F", "G"];
+const COL = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
 function libroExcel(evs) {
-  const cab = ["Fecha", "Hora", "Entidad", "Infraestructura", "Personas", "Estado", "Observaciones"];
-  const anchos = [12, 8, 42, 30, 26, 24, 48];
+  const cab = ["Fecha", "Hora", "Código", "Entidad", "Infraestructura", "Personas", "Estado", "Observaciones"];
+  const anchos = [12, 8, 15, 42, 30, 26, 24, 48];
   const texto = (ref, v) => '<c r="' + ref + '" t="inlineStr"><is><t xml:space="preserve">' + xesc(v) + "</t></is></c>";
   let filas = '<row r="1">' + cab.map((t, i) => '<c r="' + COL[i] + '1" t="inlineStr" s="1"><is><t>' + xesc(t) + "</t></is></c>").join("") + "</row>";
   evs.forEach((v, n) => {
@@ -1551,11 +1584,12 @@ function libroExcel(evs) {
     filas += '<row r="' + r + '">'
       + '<c r="A' + r + '" s="2"><v>' + serieExcel(v.fecha) + "</v></c>"
       + texto("B" + r, hhmm(v.hora))
-      + texto("C" + r, v.entidad)
-      + texto("D" + r, tipoDe(v) ? TIPOS[v.tipo].largo : "")
-      + texto("E" + r, listaP(v.personas).join(", "))
-      + texto("F" + r, ROTULO_RES[resDe(v)])
-      + texto("G" + r, v.observaciones || "")
+      + texto("C" + r, codigoDe(v))
+      + texto("D" + r, v.entidad)
+      + texto("E" + r, tipoDe(v) ? TIPOS[v.tipo].largo : "")
+      + texto("F" + r, listaP(v.personas).join(", "))
+      + texto("G" + r, ROTULO_RES[resDe(v)])
+      + texto("H" + r, v.observaciones || "")
       + "</row>";
   });
   const hoja = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
@@ -1563,7 +1597,7 @@ function libroExcel(evs) {
     + '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
     + "<cols>" + anchos.map((w, i) => '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>').join("") + "</cols>"
     + "<sheetData>" + filas + "</sheetData>"
-    + '<autoFilter ref="A1:G' + (evs.length + 1) + '"/></worksheet>';
+    + '<autoFilter ref="A1:H' + (evs.length + 1) + '"/></worksheet>';
 
   const estilos = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
     + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
@@ -1608,7 +1642,7 @@ async function descargarExcel() {
   const evs = visibles()
     .filter((v) => S.vista !== "resultados" || !S.filtroRes || resDe(v) === S.filtroRes)
     .filter((v) => S.vista !== "resultados" || !q
-      || ((v.entidad || "") + " " + listaP(v.personas).join(" ") + " " + (v.observaciones || "")).toLowerCase().includes(q));
+      || ((v.entidad || "") + " " + codigoDe(v) + " " + listaP(v.personas).join(" ") + " " + (v.observaciones || "")).toLowerCase().includes(q));
   if (!evs.length) return toast("No hay inspecciones que exportar con los filtros actuales.");
   const bytes = libroExcel(evs);
   const nombre = "inspecciones-" + hoyISO() + ".xlsx";
