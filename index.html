@@ -263,7 +263,11 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
 .fila-r .quien{font-size:12.5px; color:var(--ink-3)}
 .fila-r .der{margin-left:auto; display:flex; gap:8px; align-items:center}
 .sin-filas{padding:22px 14px; color:var(--ink-3); font-size:13.5px; text-align:center}
-.cargando{padding:44px 16px; text-align:center; color:var(--ink-3); font-size:14px}
+.cargando{
+  padding:44px 16px; text-align:center; color:var(--ink-3); font-size:14px;
+  opacity:0; animation:asomar .25s .6s forwards;   /* si resuelve antes, no se ve */
+}
+@keyframes asomar{to{opacity:1}}
 .solo-movil{display:none}
 
 /* menú de opciones en el celular */
@@ -678,9 +682,11 @@ async function storeSupabase(cfg) {
   const deFila = (r) => ({ ...r, hora: hhmm(r.hora), personas: listaP(r.personas), tipo: r.tipo || "", estado: r.estado || "", observaciones: r.observaciones || "" });
   const aFila = (o) => ({ ...o, tipo: o.tipo || null, estado: o.estado || null });
   const ids = new Set();
+  /* Devuelve null si la consulta falla: así un error de red no vacía lo
+     que ya se está viendo en pantalla. */
   const leer = async () => {
     const { data, error } = await sb.from("visitas").select("*");
-    if (error) { console.warn(error.message); return []; }
+    if (error) { console.warn("visitas:", error.message); return null; }
     const filas = (data || []).map(deFila);
     ids.clear(); filas.forEach((f) => ids.add(f.id));
     return filas;
@@ -689,7 +695,7 @@ async function storeSupabase(cfg) {
     tipo: "supabase", etiqueta: "PostgreSQL (Supabase)", cliente: sb,
     escucha(cb) {
       alCambiar = cb;
-      const refrescar = async () => cb(await leer());
+      const refrescar = async () => { const filas = await leer(); if (filas) cb(filas); };
       refrescar();
       sb.channel("visitas").on("postgres_changes", { event: "*", schema: "public", table: "visitas" }, refrescar).subscribe();
     },
@@ -709,7 +715,8 @@ async function storeSupabase(cfg) {
           ({ error } = await sb.from("visitas").insert(fila));
         }
         if (!error) {
-          if (alCambiar) alCambiar(await leer());
+          const frescas = await leer();
+          if (frescas && alCambiar) alCambiar(frescas);
           if (omitidas.length) toast("Guardado. Falta ejecutar en la base la migración de: " + omitidas.join(", ") + ".");
           return;
         }
@@ -720,7 +727,7 @@ async function storeSupabase(cfg) {
         console.warn("La base no tiene la columna «" + falta + "»; se guarda sin ella.");
       }
     },
-    async recargar() { if (alCambiar) alCambiar(await leer()); },
+    async recargar() { const filas = await leer(); if (filas && alCambiar) alCambiar(filas); },
     async padron() {
       const { data, error } = await sb.from("entidades").select("codigo,nombre,ubicacion").order("nombre");
       if (error) { console.warn("padrón:", error.message); return []; }
@@ -741,7 +748,12 @@ async function storeSupabase(cfg) {
       const { data } = await sb.from("inspectores_publicos").select("nombre");
       return (data || []).map((r) => r.nombre).filter(Boolean);
     },
-    async borrar(id) { const { error } = await sb.from("visitas").delete().eq("id", id); if (error) throw error; if (alCambiar) alCambiar(await leer()); },
+    async borrar(id) {
+      const { error } = await sb.from("visitas").delete().eq("id", id);
+      if (error) throw error;
+      const filas = await leer();
+      if (filas && alCambiar) alCambiar(filas);
+    },
     async probarEdicion() {
       const { data } = await sb.auth.getSession();
       const correo = data && data.session && data.session.user ? data.session.user.email : null;
@@ -778,16 +790,38 @@ const EJEMPLO = ejemplo();
    a la primera respuesta. Así nadie ve, ni por un segundo, una entidad que no
    existe en su agenda.                                                      */
 const HAY_SERVIDOR = !!(CONFIG.supabase.url && CONFIG.supabase.anonKey);
+
+/* La última agenda recibida queda guardada en el propio dispositivo, para
+   pintarla al instante en la siguiente apertura mientras llega la de verdad.
+   Si el acceso es privado, solo se usa con sesión abierta.                 */
+const CACHE = "agenda-cache-v1";
+function leerCache() {
+  if (!HAY_SERVIDOR) return null;
+  try {
+    const c = JSON.parse(localStorage.getItem(CACHE) || "null");
+    return c && c.url === CONFIG.supabase.url && Array.isArray(c.visitas) ? c.visitas : null;
+  } catch (e) { return null; }
+}
+function guardarCache(visitas) {
+  if (!HAY_SERVIDOR) return;
+  try { localStorage.setItem(CACHE, JSON.stringify({ url: CONFIG.supabase.url, visitas, ts: Date.now() })); } catch (e) {}
+}
+function olvidarCache() { try { localStorage.removeItem(CACHE); } catch (e) {} }
 const S = {
-  reales: [], visitas: HAY_SERVIDOR ? [] : EJEMPLO, ejemplo: !HAY_SERVIDOR, cargando: HAY_SERVIDOR,
+  reales: [], visitas: HAY_SERVIDOR ? [] : EJEMPLO, ejemplo: !HAY_SERVIDOR, cargando: HAY_SERVIDOR, deCache: false,
   store: null, edicion: false, rol: "lector", yo: "", roster: [],
   vista: "mes", cursor: hoyISO(), personas: [], filtroRes: "", verPasadas: false, hoy: hoyISO(),
   desde: null, soloNovedades: false, admin: false, padron: [], buscar: ""
 };
 
 function aplicar(filas) {
+  /* Si la base no está disponible y el respaldo local llega vacío, se
+     conserva lo último recibido en lugar de mostrar una agenda en blanco. */
+  if (S.deCache && !filas.length && S.store && S.store.tipo !== "supabase") return;
   S.reales = filas;
   S.cargando = false;
+  S.deCache = false;
+  if (S.store && S.store.tipo === "supabase") guardarCache(filas);
   S.ejemplo = !HAY_SERVIDOR && filas.length === 0;
   S.visitas = S.ejemplo ? EJEMPLO : filas;
   render();
@@ -878,7 +912,7 @@ function render() {
   else renderTiempo(evs, S.vista === "semana" ? Array.from({ length: 7 }, (_, i) => suma(lunes(S.cursor), i)) : [S.cursor]);
   $("#leyenda").hidden = !calendario;
 
-  $("#pie-fuente").textContent = "Datos: " + (S.store ? S.store.etiqueta : "cargando…");
+  $("#pie-fuente").textContent = S.deCache ? "Actualizando…" : "Datos: " + (S.store ? S.store.etiqueta : "cargando…");
   $("#pie-cuenta").textContent = evs.length + (evs.length === 1 ? " visita" : " visitas")
     + (S.personas.length ? " de " + S.personas.join(", ") : "") + " en total";
 }
@@ -1658,7 +1692,7 @@ $("#btn-nueva").addEventListener("click", () => abrir(null, S.vista === "mes" ? 
 $("#btn-edicion").addEventListener("click", async () => {
   if (S.edicion) {
     S.edicion = false; S.rol = "lector"; S.yo = "";
-    if (S.store.cliente && CONFIG.acceso.privado) { await S.store.cliente.auth.signOut(); toast("Sesión cerrada."); }
+    if (S.store.cliente && CONFIG.acceso.privado) { await S.store.cliente.auth.signOut(); olvidarCache(); toast("Sesión cerrada."); }
     render();
     if (CONFIG.acceso.privado) abrirAcceso("clave");
     return;
@@ -1687,6 +1721,8 @@ document.addEventListener("keydown", (ev) => {
 /* ---------------------- arranque ---------------------- */
 (async function iniciar() {
   try { S.desde = localStorage.getItem("agenda-visto") || null; } catch (e) {}
+  const previas = leerCache();
+  if (previas && previas.length) { S.visitas = previas; S.cargando = false; S.deCache = true; }
   let guardado = "mango";
   try { guardado = localStorage.getItem("agenda-paleta-v2") || "mango"; } catch (e) {}
   aplicarTema(guardado);
