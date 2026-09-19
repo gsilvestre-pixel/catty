@@ -50,11 +50,17 @@ y el padrón los guarda por su razón social.
 
 ## El código del predio
 
-El código viaja con la visita: al elegir la entidad se toma del padrón y
-queda escrito en el registro, de modo que si mañana el padrón cambia o la
-entidad se renombra, lo inspeccionado ese día sigue siendo lo que fue. Las
-visitas programadas antes de la migración 06 lo deducen del padrón por el
-nombre de la entidad.
+El formulario tiene su propio campo **Código del predio**, después de la
+entidad. Al elegir una entidad del padrón se llena solo, pero se puede
+escribir a mano: hay 55 entidades sin código en el cuadro de control, y
+esas se completan aquí. En cuanto alguien lo escribe, deja de tocarse
+aunque cambie la entidad.
+
+El código queda escrito en la visita, no deducido cada vez, de modo que si
+mañana el padrón cambia o la entidad se renombra, lo inspeccionado ese día
+sigue siendo lo que fue. Las visitas programadas antes de la migración 06
+lo deducen del padrón por el nombre de la entidad, y al volver a guardarlas
+queda escrito.
 
 Se ve bajo el nombre en la agenda y en Resultados, en el rótulo del
 calendario, en el formulario y en la columna Código del Excel. También se

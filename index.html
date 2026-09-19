@@ -274,6 +274,7 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
 
 /* Código del predio: discreto, pero siempre a la vista junto a la entidad. */
 .cod-pr{display:block; font-family:var(--mono); font-size:11.5px; color:var(--ink-3); font-weight:400; margin-top:2px}
+#f-codigo{font-family:var(--mono); text-transform:uppercase}
 .fila-r .ent .cod-pr{margin-top:1px}
 .leyenda i.edif{background:var(--edif)} .leyenda i.sup{background:var(--sup)}
 
@@ -567,7 +568,12 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
                autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
                role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="sug-entidad">
         <div class="sugeridor" id="sug-entidad" role="listbox" aria-label="Entidades del padrón" hidden></div>
-        <p class="ayuda pista" id="cod-entidad" hidden></p>
+      </div>
+      <div class="campo">
+        <label for="f-codigo">Código del predio</label>
+        <input type="text" id="f-codigo" maxlength="60" placeholder="Opcional — ej. INFBR08-095"
+               autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+        <p class="ayuda pista" id="cod-entidad" hidden>Tomado del padrón. Puedes cambiarlo.</p>
       </div>
       <div class="fila">
         <div class="campo">
@@ -1350,7 +1356,7 @@ function abrir(v, fecha, hora) {
   cajaP._val = v ? listaP(v.personas).slice() : [];
   cajaP.querySelector("input").value = "";
   chipsRender();
-  ["#f-entidad", "#f-fecha", "#f-hora"].forEach((s) => { $(s).readOnly = !puedeTodo(); });
+  ["#f-entidad", "#f-codigo", "#f-fecha", "#f-hora"].forEach((s) => { $(s).readOnly = !puedeTodo(); });
   $("#f-obs").readOnly = ro;
   $("#f-estado").disabled = ro;
   $("#f-tipo").disabled = !puedeTodo();   /* la clase de obra la define quien programa */
@@ -1362,7 +1368,9 @@ function abrir(v, fecha, hora) {
   $("#emojis").hidden = ro;
   tipoATuGusto = !!v;    /* en una visita guardada manda lo guardado */
   $("#pista-tipo").hidden = true;
-  codigoElegido = v ? codigoDe(v) : "";
+  codigoATuGusto = !!(v && String(v.codigo || "").trim());   /* lo guardado manda */
+  $("#f-codigo").value = v ? codigoDe(v) : "";
+  $("#cod-entidad").hidden = true;
   cerrarSug();
   pintarCodigo();
   pintarSugerencias();   /* por si el rato libre aún no llegó */
@@ -1371,7 +1379,7 @@ function abrir(v, fecha, hora) {
 /* El padrón sabe qué clase de obra tiene cada titular, así que al elegir
    la entidad se propone el tipo. Es solo una propuesta: en cuanto alguien
    lo cambia a mano, deja de tocarse.                                     */
-let tipoATuGusto = false, codigoElegido = "";
+let tipoATuGusto = false, codigoATuGusto = false;
 const tipoDelPadron = (nombre) => {
   const n = String(nombre || "").trim().toLowerCase();
   if (!n) return "";
@@ -1424,22 +1432,22 @@ function mover(paso) {
 }
 function elegir(nombre) {
   cajaEnt.value = nombre;
-  codigoElegido = codigoDelPadron(nombre);
   cerrarSug();
   proponerTipo();
   pintarCodigo();
 }
-/* El código que se va a guardar, a la vista bajo el campo. */
+/* El padrón propone el código, igual que el tipo: en cuanto alguien lo
+   escribe a mano, deja de tocarse. */
 function pintarCodigo() {
-  const c = codigoElegido || codigoDelPadron(cajaEnt.value);
-  $("#cod-entidad").textContent = c ? "Código del predio: " + c : "";
-  $("#cod-entidad").hidden = !c;
+  if (codigoATuGusto || !puedeTodo()) return;
+  const c = codigoDelPadron(cajaEnt.value);
+  if (!c || c === $("#f-codigo").value) return;
+  $("#f-codigo").value = c;
+  $("#cod-entidad").hidden = false;
 }
 
-cajaEnt.addEventListener("input", () => {
-  codigoElegido = "";          /* si se vuelve a escribir, el código se recalcula */
-  abrirSug(); proponerTipo(); pintarCodigo();
-});
+cajaEnt.addEventListener("input", () => { abrirSug(); proponerTipo(); pintarCodigo(); });
+$("#f-codigo").addEventListener("input", () => { codigoATuGusto = true; $("#cod-entidad").hidden = true; });
 cajaEnt.addEventListener("focus", abrirSug);
 cajaEnt.addEventListener("change", proponerTipo);
 /* mousedown/touchstart, no click: el campo pierde el foco antes del click. */
@@ -1469,7 +1477,7 @@ $("#form").addEventListener("submit", async (ev) => {
     : {
         id: editando ? editando.id : uid(),
         entidad: $("#f-entidad").value.trim(),
-        codigo: codigoElegido || codigoDelPadron($("#f-entidad").value),
+        codigo: $("#f-codigo").value.trim().toUpperCase(),
         fecha: $("#f-fecha").value,
         hora: $("#f-hora").value,
         personas: chipsGet(),
