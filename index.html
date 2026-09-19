@@ -128,6 +128,8 @@ select, input[type="text"], input[type="date"], input[type="time"], textarea{
 main{padding-bottom:56px}
 .aviso{display:flex; gap:10px; align-items:center; padding:10px 14px; border-radius:var(--radius); border:1px solid var(--line); background:var(--surface-2); font-size:13.5px; color:var(--ink-2); margin-top:14px}
 .aviso b{color:var(--ink)}
+.aviso.falta{border-color:color-mix(in srgb, var(--mal) 45%, var(--line)); background:var(--mal-soft); color:var(--mal)}
+.aviso.falta b{color:var(--mal)}
 .aviso.nov{border-color:color-mix(in srgb, var(--accent) 45%, var(--line)); background:var(--accent-soft); color:var(--accent-ink); flex-wrap:wrap}
 .aviso.nov .btn{margin-left:0}
 .aviso.nov .btn:first-of-type{margin-left:auto}
@@ -708,6 +710,11 @@ async function storeClaudeDb() {
   };
 }
 
+/* Columnas que la base rechazó por no existir todavía: se avisan de forma
+   permanente, porque un cartel que pasa en dos segundos se pierde. */
+const faltantes = new Set();
+const MIGRACION = { estado: "01", tipo: "02", codigo: "06" };
+
 /* PostgREST avisa con estos mensajes cuando la columna no existe todavía. */
 function columnaFaltante(e) {
   const t = String((e && (e.message || e.details || e.hint)) || "");
@@ -757,13 +764,14 @@ async function storeSupabase(cfg) {
         if (!error) {
           const frescas = await leer();
           if (frescas && alCambiar) alCambiar(frescas);
-          if (omitidas.length) toast("Guardado. Falta ejecutar en la base la migración de: " + omitidas.join(", ") + ".");
+          if (omitidas.length) { render(); toast("Se guardó, pero sin " + omitidas.join(" ni ") + ": falta una migración."); }
           return;
         }
         const falta = columnaFaltante(error);
         if (!falta || !(falta in fila)) throw error;
         delete fila[falta];
         omitidas.push(falta);
+        faltantes.add(falta);   /* para avisarlo de forma permanente, no solo un instante */
         console.warn("La base no tiene la columna «" + falta + "»; se guarda sin ella.");
       }
     },
@@ -1210,6 +1218,16 @@ function renderAviso() {
     const b = $("#aviso-entrar"); if (b) b.onclick = () => $("#btn-edicion").click();
   } else if (S.store && S.store.tipo === "local") {
     c.innerHTML = '<div class="aviso"><span><b>Modo local.</b> La agenda se guarda solo en este navegador.</span></div>';
+  } else if (faltantes.size) {
+    /* La base va por detrás de la app: se dice qué se está perdiendo y qué
+       archivo hay que ejecutar, en vez de dejar que el dato se caiga en
+       silencio.                                                          */
+    const cols = Array.from(faltantes);
+    const migs = Array.from(new Set(cols.map((x) => MIGRACION[x]).filter(Boolean))).sort();
+    c.innerHTML = '<div class="aviso falta"><span><b>Falta actualizar la base.</b> Lo que escribas en '
+      + cols.map((x) => "<b>" + esc(x) + "</b>").join(" y ") + " no se está guardando"
+      + (migs.length ? ". Ejecuta en Supabase la migración " + migs.map((m) => "<b>" + m + "</b>").join(" y la ") : "")
+      + ".</span></div>";
   } else c.innerHTML = "";
 }
 
