@@ -254,7 +254,9 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
    medio se distingue; una mitad y mitad simple se ve como un color solo. */
 .pt.amb,.leyenda i.amb{background:linear-gradient(135deg,var(--edif) 0 46%,#fff 46% 54%,var(--sup) 54% 100%)}
 .pista{margin:5px 0 0; font-size:12px; color:var(--ink-2)}
-#pie-version{opacity:.55}
+#pie-version{opacity:.6; background:none; border:0; padding:0; font:inherit; color:inherit;
+  text-decoration:underline; text-decoration-style:dotted; text-underline-offset:3px; cursor:pointer}
+#pie-version:hover{opacity:1}
 
 /* Buscador del campo Entidad. La lista nativa del navegador solo compara
    contra el comienzo del nombre —y en iPhone casi no aparece—, así que la
@@ -466,6 +468,7 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
   <button type="button" data-hace="btn-tema">Colores de la app</button>
   <button type="button" data-hace="btn-admin" id="m-admin" hidden>Administrar</button>
   <button type="button" data-hace="btn-edicion" id="m-edicion">Activar edición</button>
+  <button type="button" id="m-actualizar">Traer la última versión</button>
 </div>
 
 <main class="wrap">
@@ -491,7 +494,7 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
     <span><i class="sup"></i> Infraestructura de superficies</span>
     <span><i class="amb"></i> Ambas</span>
   </div>
-  <p class="pie"><span id="pie-fuente">—</span><span id="pie-cuenta"></span><span id="pie-version" title="Versión de la app y estado del padrón"></span></p>
+  <p class="pie"><span id="pie-fuente">—</span><span id="pie-cuenta"></span><button type="button" id="pie-version" title="Trae del servidor la última versión de la app"></button></p>
 </main>
 
 <button class="fab" id="fab" hidden aria-label="Programar visita">+</button>
@@ -844,7 +847,7 @@ const HAY_SERVIDOR = !!(CONFIG.supabase.url && CONFIG.supabase.anonKey);
 /* La última agenda recibida queda guardada en el propio dispositivo, para
    pintarla al instante en la siguiente apertura mientras llega la de verdad.
    Si el acceso es privado, solo se usa con sesión abierta.                 */
-const VERSION = "2026.09.18";   /* se muestra en el pie, para saber qué versión corre cada aparato */
+const VERSION = "2026.09.19";   /* se muestra en el pie, para saber qué versión corre cada aparato */
 const CACHE = "agenda-cache-v1";
 function leerCache() {
   if (!HAY_SERVIDOR) return null;
@@ -1076,9 +1079,11 @@ function render() {
     + (S.personas.length ? " de " + S.personas.join(", ") : "") + " en total";
   /* Para poder saber, desde el propio aparato, qué versión se está usando
      y si el padrón llegó con la clase de obra. */
+  $("#m-actualizar").textContent = "Traer la última versión (ahora: v" + VERSION + ")";
   const conTipo = S.padron.filter((e) => TIPOS[e.tipo]).length;
   $("#pie-version").textContent = "v" + VERSION
-    + (S.padron.length ? " · padrón " + S.padron.length + " (" + conTipo + " con tipo)" : "");
+    + (S.padron.length ? " · padrón " + S.padron.length + " (" + conTipo + " con tipo)" : "")
+    + " · actualizar";
 }
 
 /* Vista de lista: la más legible en el celular — sin rejilla horaria vacía. */
@@ -1996,6 +2001,16 @@ $("#menu-mas").addEventListener("click", (ev) => {
   $("#btn-mas").setAttribute("aria-expanded", "false");
   $("#" + b.dataset.hace).click();
 });
+
+/* El navegador guarda la página y puede seguir mostrando la de ayer. Pedirla
+   con una dirección distinta obliga a traerla del servidor, que es lo que un
+   recargado normal no siempre hace —y en la app instalada, casi nunca—.   */
+function traerUltimaVersion() {
+  olvidarCache();
+  location.replace(location.pathname + "?v=" + Date.now());
+}
+$("#m-actualizar").addEventListener("click", traerUltimaVersion);
+$("#pie-version").addEventListener("click", traerUltimaVersion);
 document.addEventListener("click", (ev) => {
   if (!$("#menu-mas").hidden && !ev.target.closest("#menu-mas, #btn-mas")) {
     $("#menu-mas").hidden = true;
