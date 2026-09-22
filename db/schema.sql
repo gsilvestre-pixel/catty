@@ -78,7 +78,7 @@ create table if not exists public.visitas (
   -- una o más personas por visita
   personas       text[] not null default '{}',
   -- nulo mientras la visita solo está programada
-  estado         text check (estado in ('exitosa', 'negada', 'reprogramado')),
+  estado         text check (estado in ('exitosa', 'negada', 'reprogramado', 'continuara')),
   observaciones  text not null default '',
   creado_en      timestamptz not null default now(),
   actualizado_en timestamptz not null default now()
