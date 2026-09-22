@@ -339,6 +339,10 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
 }
 .dia-cab b{font-size:13.5px; color:var(--ink); letter-spacing:0; text-transform:none}
 .dia-cab.hoy b{background:var(--hoy); color:#fff; padding:2px 10px; border-radius:99px; font-size:12.5px}
+.todas-ok{margin-left:auto; border:1px solid color-mix(in srgb, var(--ok) 40%, var(--line)); background:var(--ok-soft);
+  color:var(--ok); border-radius:99px; padding:3px 11px; font-size:11.5px; font-weight:700; letter-spacing:0;
+  text-transform:none; cursor:pointer; white-space:nowrap}
+.todas-ok:hover{background:color-mix(in srgb, var(--ok) 16%, var(--ok-soft))}
 .ag-item{
   background:var(--surface); border:1px solid var(--line); border-radius:10px;
   margin-bottom:8px; border-left:4px solid var(--neutro); overflow:hidden;
@@ -1114,7 +1118,7 @@ function renderAgenda(evs) {
     lista.forEach((v) => {
       if (v.fecha !== dia) {
         dia = v.fecha;
-        html += '<div class="dia-cab' + (dia === S.hoy ? " hoy" : "") + '">' + etiqueta(dia) + "</div>";
+        html += '<div class="dia-cab' + (dia === S.hoy ? " hoy" : "") + '">' + etiqueta(dia) + botonTodasOk(dia) + "</div>";
       }
       const gente = listaP(v.personas);
       /* Si ya pasó la hora y falta el resultado, se marca desde la propia tarjeta. */
@@ -1231,6 +1235,19 @@ function renderAviso() {
   } else c.innerHTML = "";
 }
 
+/* Casi todas las inspecciones salen bien, así que marcarlas una por una es
+   trabajo de más. Este botón deja en «exitosa» las que siguen pendientes de
+   un día, y las puntuales se corrigen después a mano. Solo lo ve quien
+   administra la agenda.                                                   */
+const pendientesDe = (fecha) => visibles().filter((v) => v.fecha === fecha && !v.estado);
+function botonTodasOk(fecha) {
+  if (!puedeTodo() || S.ejemplo) return "";
+  const n = pendientesDe(fecha).length;
+  if (!n) return "";
+  return '<button type="button" class="todas-ok" data-dia="' + fecha + '">'
+    + "Marcar " + n + (n === 1 ? " como exitosa" : " como exitosas") + "</button>";
+}
+
 /* En el calendario solo cabe una línea, así que el código va en el rótulo
    que aparece al posar el puntero; completo se ve al abrir la visita. */
 const chipEv = (v) => '<button class="ev ' + claseRes(v) + '" data-id="' + v.id + '" title="'
@@ -1310,22 +1327,37 @@ function renderTiempo(evs, dias) {
     return '<div class="col-dia' + (d.getDay() === 0 || d.getDay() === 6 ? " finde" : "") + '">' + franjas + bloques + ahora + "</div>";
   }).join("");
 
+  /* En la vista de un solo día cabe la misma acción que en la agenda. */
+  const barra = dias.length === 1 && botonTodasOk(dias[0])
+    ? '<div class="dia-cab">' + botonTodasOk(dias[0]) + "</div>" : "";
+
   $("#lienzo").className = "lienzo";
-  $("#lienzo").innerHTML = '<div class="grid-scroll' + (dias.length === 1 ? " dia-detalle" : "") + '">'
+  $("#lienzo").innerHTML = barra
+    + '<div class="grid-scroll' + (dias.length === 1 ? " dia-detalle" : "") + '">'
     + '<div class="cabecera" style="grid-template-columns:' + cols + '"><div class="hueco"></div>' + cab + "</div>"
     + '<div class="horas" style="grid-template-columns:' + cols + '"><div class="col-horas">' + etiquetas + "</div>" + columnas + "</div></div>";
 }
 
 /* ---------------------- interacción ---------------------- */
-function toast(msg) {
+function toast(msg, accion) {
   let t = $("#toast");
   if (!t) {
     t = document.createElement("div"); t.id = "toast";
     t.style.cssText = "position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:80;background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:9px;font-size:13.5px;font-weight:600;box-shadow:var(--shadow);max-width:min(92vw,420px);text-align:center";
     document.body.appendChild(t);
   }
-  t.textContent = msg; t.hidden = false;
-  clearTimeout(t._t); t._t = setTimeout(() => { t.hidden = true; }, 3500);
+  t.textContent = msg;
+  /* Algunos avisos llevan una acción —deshacer, sobre todo— y entonces
+     duran más, porque hay que darle tiempo a leerlo y decidir. */
+  if (accion) {
+    const b = document.createElement("button");
+    b.textContent = accion.texto;
+    b.style.cssText = "margin-left:12px;background:none;border:1px solid currentColor;color:inherit;border-radius:7px;padding:3px 10px;font:inherit;font-size:12.5px;cursor:pointer";
+    b.onclick = () => { t.hidden = true; accion.hacer(); };
+    t.appendChild(b);
+  }
+  t.hidden = false;
+  clearTimeout(t._t); t._t = setTimeout(() => { t.hidden = true; }, accion ? 9000 : 3500);
 }
 
 /* campo de personas */
@@ -1532,6 +1564,8 @@ $("#lienzo").addEventListener("click", (ev) => {
       .catch((e) => { marca.disabled = false; toast("No se pudo guardar: " + (e.message || e.code)); });
     return;
   }
+  const todas = ev.target.closest(".todas-ok");
+  if (todas) { marcarDiaExitoso(todas.dataset.dia, todas); return; }
   if (ev.target.closest("#mas-pasadas")) { S.verPasadas = !S.verPasadas; return render(); }
   const res = ev.target.closest("[data-res]");
   if (res) {
@@ -1548,6 +1582,41 @@ $("#lienzo").addEventListener("click", (ev) => {
   const celda = ev.target.closest(".celda");
   if (celda) return abrir(null, celda.dataset.fecha, "09:00");
 });
+
+/* Marca de una vez las visitas pendientes de un día. No toca las que ya
+   tienen estado —eso desharía una corrección hecha a mano— y se puede
+   deshacer, porque pulsarlo en el día equivocado es fácil.              */
+async function marcarDiaExitoso(fecha, boton) {
+  if (!puedeTodo()) return;
+  const lista = pendientesDe(fecha);
+  if (!lista.length) return;
+  const d = aDate(fecha);
+  const cuando = d.getDate() + " " + MES[d.getMonth()].slice(0, 3);
+  const cuantas = lista.length + (lista.length === 1 ? " visita" : " visitas");
+  if (!confirm("Se marcarán como INSPECCIÓN EXITOSA " + cuantas + " del " + cuando
+      + (S.personas.length ? " de " + S.personas.join(", ") : "")
+      + ".\n\nLas que ya tienen un estado registrado no se tocan.")) return;
+
+  if (boton) { boton.disabled = true; boton.textContent = "Marcando…"; }
+  const hechas = [], fallidas = [];
+  for (const v of lista) {
+    try { await S.store.guardar({ ...v, estado: "exitosa" }); hechas.push(v); }
+    catch (e) { fallidas.push(v); console.warn("no se pudo marcar", v.entidad, e.message || e.code); }
+  }
+  render();
+  if (!hechas.length) return toast("No se pudo marcar ninguna.");
+  const aviso = hechas.length + (hechas.length === 1 ? " visita marcada" : " visitas marcadas")
+    + (fallidas.length ? " · " + fallidas.length + " sin guardar" : "");
+  toast(aviso, { texto: "Deshacer", hacer: () => deshacerMarcado(hechas) });
+}
+
+async function deshacerMarcado(visitas) {
+  for (const v of visitas) {
+    try { await S.store.guardar({ ...v, estado: v.estado || "" }); } catch (e) { console.warn(e); }
+  }
+  render();
+  toast("Se deshizo el marcado.");
+}
 
 /* ---------------------- descarga en Excel ----------------------
    Escribe un .xlsx válido sin librerías externas: el archivo es un ZIP
