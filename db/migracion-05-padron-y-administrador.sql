@@ -19,9 +19,10 @@
 -- ------------------------------------------------------------------
 alter table public.editores add column if not exists admin boolean not null default false;
 
--- ⬇⬇ CAMBIAR por el correo de quien administra ⬇⬇
+-- ⬇⬇ CAMBIAR por el correo de quien administra, antes de ejecutar ⬇⬇
+-- (este archivo es público: no conviene dejar aquí correos reales)
 insert into public.editores (email, nombre, admin)
-values ('gsilvestre@jmasociados.pe', 'Administrador', true)
+values ('CORREO-DEL-ADMINISTRADOR@dominio.pe', 'Administrador', true)
 on conflict (email) do update set admin = true;
 
 create or replace function public.es_admin() returns boolean
