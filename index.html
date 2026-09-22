@@ -1702,45 +1702,76 @@ const aNum = (x) => {
 const dosDig = (n) => String(n).padStart(2, "0");
 const fechaISO = (a, m, d) => a + "-" + dosDig(m) + "-" + dosDig(d);
 
-/* ---- hora ---- */
+/* ---- hora ----
+   Se dicta de muchas formas: "a las cinco de la tarde", "5 de la tarde",
+   "cinco y media", "17:30". Y el momento del día manda sobre cualquier
+   suposición: cinco de la tarde son las 17:00, no las 5.              */
+const FRANJA = (marca) => {
+  const m = sinTildes(String(marca || "").toLowerCase()).trim();
+  if (!m) return "";
+  if (/madrugada/.test(m)) return "madrugada";
+  if (/noche/.test(m)) return "noche";
+  if (/tarde/.test(m)) return "tarde";
+  if (/manana/.test(m)) return "manana";
+  if (/del?\s+(el\s+)?dia|mediodia/.test(m)) return "dia";
+  if (/^p\.?\s?m\.?$/.test(m)) return "pm";
+  if (/^a\.?\s?m\.?$/.test(m)) return "am";
+  return "";
+};
+function ajustarFranja(h, franja) {
+  switch (franja) {
+    case "tarde": case "pm":  return h < 12 ? h + 12 : h;
+    case "noche":             return h === 12 ? 0 : (h >= 1 && h <= 4 ? h : (h < 12 ? h + 12 : h));
+    case "madrugada":         return h === 12 ? 0 : h;
+    case "am":                return h === 12 ? 0 : h;
+    /* "las doce de la mañana" es mediodía en el habla de aquí */
+    case "manana": case "dia": return h;
+    default:                  return (h >= 1 && h <= 7) ? h + 12 : h;   /* sin aclarar, la jornada es de día */
+  }
+}
+
 function hallarHora(t) {
   /* Sin capturar: si estos grupos capturaran, correrían la numeración de
      los que sí importan y la marca de mañana/tarde se leería mal. */
   const N = "(?:\\d{1,2}|" + Object.keys(NUM).join("|") + ")";
+  const MIN = "(y\\s+media|y\\s+cuarto|menos\\s+cuarto|en\\s+punto|(?:y|con)\\s+" + N + ")";
+  const MARCA = "(de\\s+la\\s+(?:manana|mañana|tarde|noche|madrugada)|del?\\s+(?:el\\s+)?d(?:i|í)a|a\\.?\\s?m\\.?|p\\.?\\s?m\\.?)";
   const pruebas = [
-    /* 14:30 · 2.30 · a las 14 30 */
-    { re: new RegExp("(?:a\\s+las?\\s+)?(\\d{1,2})\\s*[:.]\\s*(\\d{2})\\s*(a\\.?m\\.?|p\\.?m\\.?)?", "i"),
+    /* 14:30 · 2.30 */
+    { re: new RegExp("(?:a\\s+las?\\s+)?(\\d{1,2})\\s*[:.]\\s*(\\d{2})\\s*" + MARCA + "?", "i"),
       lee: (m) => ({ h: +m[1], min: +m[2], marca: m[3] }) },
-    /* a las dos y media / y cuarto / y veinte / en punto / menos cuarto */
-    { re: new RegExp("a\\s+la\\s?s?\\s+(" + N + ")\\s*(?:(y\\s+media|y\\s+cuarto|menos\\s+cuarto|en\\s+punto|(?:y|con)\\s+" + N + "))?\\s*(?:(de\\s+la\\s+(?:manana|mañana|tarde|noche|madrugada)|a\\.?\\s?m\\.?|p\\.?\\s?m\\.?))?", "i"),
-      lee: (m) => {
-        const h = aNum(m[1]); if (h === null) return null;
-        let min = 0, resta = false;
-        const c = m[2] ? sinTildes(m[2].toLowerCase()) : "";
-        if (/y\s+media/.test(c)) min = 30;
-        else if (/y\s+cuarto/.test(c)) min = 15;
-        else if (/menos\s+cuarto/.test(c)) { min = 45; resta = true; }
-        else if (/en\s+punto/.test(c)) min = 0;
-        else if (c) { const v = aNum(c.replace(/^(y|con)\s+/, "")); if (v !== null) min = v; }
-        return { h: resta ? (h + 23) % 24 : h, min, marca: m[3] };
-      } },
+    /* a las cinco y media de la tarde */
+    { re: new RegExp("a\\s+la\\s?s?\\s+(" + N + ")\\s*(?:" + MIN + ")?\\s*(?:" + MARCA + ")?", "i"),
+      lee: (m) => leerPartes(m[1], m[2], m[3]) },
+    /* cinco de la tarde · 5 de la tarde — sin el "a las" */
+    { re: new RegExp("\\b(" + N + ")\\s*(?:" + MIN + ")?\\s+" + MARCA, "i"),
+      lee: (m) => leerPartes(m[1], m[2], m[3]) },
     /* al mediodía */
-    { re: /al?\s+mediod(i|í)a/i, lee: () => ({ h: 12, min: 0, marca: "pm" }) }
+    { re: /al?\s+mediod(i|í)a/i, lee: () => ({ h: 12, min: 0, marca: "del dia" }) }
   ];
   for (const p of pruebas) {
     const m = t.match(p.re);
     if (!m) continue;
     const r = p.lee(m);
     if (!r || r.h == null || r.h > 24 || r.min > 59) continue;
-    let h = r.h;
-    const marca = r.marca ? sinTildes(r.marca.toLowerCase()) : "";
-    if (/p\.?m|tarde|noche/.test(marca)) { if (h < 12) h += 12; }
-    else if (/a\.?m|manana|madrugada/.test(marca)) { if (h === 12) h = 0; }
-    else if (h >= 1 && h <= 7) h += 12;   /* sin aclarar: la jornada es de día */
+    let h = ajustarFranja(r.h, FRANJA(r.marca));
     if (h === 24) h = 0;
     return { hora: dosDig(h % 24) + ":" + dosDig(r.min), desde: m.index, hasta: m.index + m[0].length };
   }
   return null;
+}
+
+function leerPartes(hTxt, minTxt, marca) {
+  const h = aNum(hTxt);
+  if (h === null) return null;
+  let min = 0, resta = false;
+  const c = minTxt ? sinTildes(minTxt.toLowerCase()) : "";
+  if (/y\s+media/.test(c)) min = 30;
+  else if (/y\s+cuarto/.test(c)) min = 15;
+  else if (/menos\s+cuarto/.test(c)) { min = 45; resta = true; }
+  else if (/en\s+punto/.test(c)) min = 0;
+  else if (c) { const v = aNum(c.replace(/^(y|con)\s+/, "")); if (v !== null) min = v; }
+  return { h: resta ? (h + 23) % 24 : h, min, marca };
 }
 
 /* ---- fecha ---- */
