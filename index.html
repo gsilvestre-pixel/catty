@@ -872,11 +872,13 @@ async function storeSupabase(cfg) {
       const correo = data && data.session && data.session.user ? data.session.user.email : null;
       if (!correo) return "sesion";
       /* Las políticas dejan ver únicamente la fila propia de cada tabla. */
-      const { data: eds } = await sb.from("editores").select("*");
+      const { data: eds, error: eEd } = await sb.from("editores").select("*");
       if (eds && eds.length) return { rol: "editor", admin: !!eds[0].admin };
       const { data: ins } = await sb.from("inspectores").select("nombre");
       if (ins && ins.length) return { rol: "inspector", nombre: ins[0].nombre };
-      return false;
+      /* Se devuelve el correo de la sesión: sin verlo no hay forma de saber
+         si falta registrarlo o si se entró con otra cuenta. */
+      return { rol: null, correo, fallo: eEd ? eEd.message : "" };
     }
   };
 }
@@ -2457,7 +2459,14 @@ $("#btn-edicion").addEventListener("click", async () => {
   S.edicion = !!rol;
   S.rol = rol ? rol.rol : "lector";
   S.yo = rol && rol.nombre ? rol.nombre : "";
-  if (!rol) toast("Tu correo no está registrado: el acceso queda como solo lectura.");
+  if (!rol) {
+    const quien = r && r.correo ? r.correo : "";
+    S.correoSesion = quien;
+    toast(r && r.fallo
+      ? "No se pudo comprobar el permiso: " + r.fallo
+      : (quien ? "«" + quien + "» no figura entre los editores: el acceso queda como solo lectura."
+               : "Tu correo no está registrado: el acceso queda como solo lectura."));
+  }
   else if (S.rol === "inspector") toast("Sesión de " + S.yo + ": puedes registrar el estado de tus visitas.");
   render();
 });
