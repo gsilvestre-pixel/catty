@@ -343,6 +343,19 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
   color:var(--ok); border-radius:99px; padding:3px 11px; font-size:11.5px; font-weight:700; letter-spacing:0;
   text-transform:none; cursor:pointer; white-space:nowrap}
 .todas-ok:hover{background:color-mix(in srgb, var(--ok) 16%, var(--ok-soft))}
+
+/* Dictado por voz. El micrófono late mientras escucha, para que se vea que
+   el aparato sigue grabando y no se hable al vacío. */
+#dlg header{display:flex; align-items:center; gap:10px}
+#btn-voz{margin-left:auto; display:inline-flex; align-items:center; gap:7px; border:1px solid var(--line);
+  background:var(--surface-2); color:var(--ink-2); border-radius:99px; padding:6px 13px; font-size:13px;
+  font-weight:600; cursor:pointer; white-space:nowrap}
+#btn-voz:hover{border-color:var(--accent); color:var(--accent-ink)}
+#btn-voz.oyendo{background:var(--mal-soft); border-color:var(--mal); color:var(--mal)}
+.mic{width:11px; height:11px; border-radius:50%; background:currentColor; display:inline-block; flex:none}
+#btn-voz.oyendo .mic{animation:latir 1s ease-in-out infinite}
+@keyframes latir{0%,100%{transform:scale(1); opacity:1} 50%{transform:scale(1.5); opacity:.45}}
+.dicho{margin:10px 22px 0; font-style:italic; color:var(--ink-3); border-left:3px solid var(--line); padding-left:10px}
 .ag-item{
   background:var(--surface); border:1px solid var(--line); border-radius:10px;
   margin-bottom:8px; border-left:4px solid var(--neutro); overflow:hidden;
@@ -463,6 +476,7 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
     <button class="btn" id="btn-admin" hidden>Administrar</button>
     <button class="btn solo-movil" id="btn-mas" aria-expanded="false" aria-label="Más opciones">⋯</button>
     <button class="btn" id="btn-edicion">Activar edición</button>
+    <button class="btn" id="btn-voz-nueva" hidden title="Programar dictando">🎤 Dictar</button>
     <button class="btn primario" id="btn-nueva">+ Visita</button>
   </div>
 </header>
@@ -474,6 +488,7 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
   <button type="button" data-hace="btn-tema">Colores de la app</button>
   <button type="button" data-hace="btn-admin" id="m-admin" hidden>Administrar</button>
   <button type="button" data-hace="btn-edicion" id="m-edicion">Activar edición</button>
+  <button type="button" data-hace="btn-voz-nueva" id="m-voz" hidden>Programar dictando</button>
   <button type="button" id="m-actualizar">Traer la última versión</button>
 </div>
 
@@ -569,7 +584,11 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
 
 <dialog id="dlg">
   <form method="dialog" id="form">
-    <header><h2 id="dlg-titulo">Nueva visita</h2></header>
+    <header><h2 id="dlg-titulo">Nueva visita</h2>
+      <button type="button" id="btn-voz" hidden title="Dictar la visita en voz alta">
+        <span class="mic" aria-hidden="true"></span><span id="voz-rot">Dictar</span></button>
+    </header>
+    <p class="ayuda dicho" id="voz-dicho" hidden></p>
     <div class="cuerpo">
       <div class="campo con-sug">
         <label for="f-entidad">Entidad</label>
@@ -1053,6 +1072,8 @@ function render() {
   $("#btn-edicion").textContent = S.edicion ? (S.rol === "editor" ? "Edición activa · salir" : (S.yo || "Sesión") + " · salir") : "Activar edición";
   $("#btn-edicion").classList.toggle("activo", S.edicion);
   $("#btn-nueva").hidden = !puedeTodo();
+  $("#btn-voz-nueva").hidden = !(puedeTodo() && HAY_VOZ);
+  $("#m-voz").hidden = !(puedeTodo() && HAY_VOZ);
   $("#fab").hidden = !puedeTodo();
   $("#btn-admin").hidden = !S.admin;
   $("#m-admin").hidden = !S.admin;
@@ -1421,6 +1442,9 @@ function abrir(v, fecha, hora) {
   $("#f-cancelar").textContent = ro ? "Cerrar" : "Cancelar";
   $("#aviso-rol").hidden = !soloEstado;
   $("#emojis").hidden = ro;
+  $("#btn-voz").hidden = !(HAY_VOZ && puedeTodo());
+  $("#voz-dicho").hidden = true;
+  pararVoz();
   tipoATuGusto = !!v;    /* en una visita guardada manda lo guardado */
   $("#pista-tipo").hidden = true;
   codigoATuGusto = !!(v && String(v.codigo || "").trim());   /* lo guardado manda */
@@ -1617,6 +1641,250 @@ async function deshacerMarcado(visitas) {
   render();
   toast("Se deshizo el marcado.");
 }
+
+/* ---------------------- dictado por voz ----------------------
+   Convierte lo que alguien dicta —"Iglesia Elebeazar, 13 de este mes a
+   las dos y media, celular 456 6161"— en los campos de una visita.
+   Trabaja en el orden en que la gente habla: entidad, fecha, hora, y
+   todo lo demás a observaciones.                                      */
+
+const NUM = { una:1, uno:1, un:1, dos:2, tres:3, cuatro:4, cinco:5, seis:6, siete:7, ocho:8,
+  nueve:9, diez:10, once:11, doce:12, trece:13, catorce:14, quince:15, dieciseis:16, dieciséis:16,
+  diecisiete:17, dieciocho:18, diecinueve:19, veinte:20, veintiuna:21, veintiuno:21, veintiun:21,
+  veintidos:22, veintidós:22, veintitres:23, veintitrés:23, veinticuatro:24, veinticinco:25,
+  veintiseis:26, veintiséis:26, veintisiete:27, veintiocho:28, veintinueve:29, treinta:30,
+  "treinta y uno":31, cuarenta:40, cincuenta:50, "cuarenta y cinco":45, "treinta y cinco":35 };
+const MESES_V = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto",
+  "setiembre","septiembre","octubre","noviembre","diciembre"];
+const MESNUM = { enero:1, febrero:2, marzo:3, abril:4, mayo:5, junio:6, julio:7, agosto:8,
+  setiembre:9, septiembre:9, octubre:10, noviembre:11, diciembre:12 };
+const DIAS_V = { domingo:0, lunes:1, martes:2, "miercoles":3, "miércoles":3, jueves:4,
+  viernes:5, sabado:6, "sábado":6 };
+
+const sinTildes = (t) => t.normalize("NFD").replace(/[̀-ͯ]/g, "");
+const aNum = (x) => {
+  const t = sinTildes(String(x).toLowerCase().trim());
+  if (/^\d+$/.test(t)) return parseInt(t, 10);
+  for (const k in NUM) if (sinTildes(k) === t) return NUM[k];
+  return null;
+};
+const dosDig = (n) => String(n).padStart(2, "0");
+const fechaISO = (a, m, d) => a + "-" + dosDig(m) + "-" + dosDig(d);
+
+/* ---- hora ---- */
+function hallarHora(t) {
+  /* Sin capturar: si estos grupos capturaran, correrían la numeración de
+     los que sí importan y la marca de mañana/tarde se leería mal. */
+  const N = "(?:\\d{1,2}|" + Object.keys(NUM).join("|") + ")";
+  const pruebas = [
+    /* 14:30 · 2.30 · a las 14 30 */
+    { re: new RegExp("(?:a\\s+las?\\s+)?(\\d{1,2})\\s*[:.]\\s*(\\d{2})\\s*(a\\.?m\\.?|p\\.?m\\.?)?", "i"),
+      lee: (m) => ({ h: +m[1], min: +m[2], marca: m[3] }) },
+    /* a las dos y media / y cuarto / y veinte / en punto / menos cuarto */
+    { re: new RegExp("a\\s+la\\s?s?\\s+(" + N + ")\\s*(?:(y\\s+media|y\\s+cuarto|menos\\s+cuarto|en\\s+punto|(?:y|con)\\s+" + N + "))?\\s*(?:(de\\s+la\\s+(?:manana|mañana|tarde|noche|madrugada)|a\\.?\\s?m\\.?|p\\.?\\s?m\\.?))?", "i"),
+      lee: (m) => {
+        const h = aNum(m[1]); if (h === null) return null;
+        let min = 0, resta = false;
+        const c = m[2] ? sinTildes(m[2].toLowerCase()) : "";
+        if (/y\s+media/.test(c)) min = 30;
+        else if (/y\s+cuarto/.test(c)) min = 15;
+        else if (/menos\s+cuarto/.test(c)) { min = 45; resta = true; }
+        else if (/en\s+punto/.test(c)) min = 0;
+        else if (c) { const v = aNum(c.replace(/^(y|con)\s+/, "")); if (v !== null) min = v; }
+        return { h: resta ? (h + 23) % 24 : h, min, marca: m[3] };
+      } },
+    /* al mediodía */
+    { re: /al?\s+mediod(i|í)a/i, lee: () => ({ h: 12, min: 0, marca: "pm" }) }
+  ];
+  for (const p of pruebas) {
+    const m = t.match(p.re);
+    if (!m) continue;
+    const r = p.lee(m);
+    if (!r || r.h == null || r.h > 24 || r.min > 59) continue;
+    let h = r.h;
+    const marca = r.marca ? sinTildes(r.marca.toLowerCase()) : "";
+    if (/p\.?m|tarde|noche/.test(marca)) { if (h < 12) h += 12; }
+    else if (/a\.?m|manana|madrugada/.test(marca)) { if (h === 12) h = 0; }
+    else if (h >= 1 && h <= 7) h += 12;   /* sin aclarar: la jornada es de día */
+    if (h === 24) h = 0;
+    return { hora: dosDig(h % 24) + ":" + dosDig(r.min), desde: m.index, hasta: m.index + m[0].length };
+  }
+  return null;
+}
+
+/* ---- fecha ---- */
+function hallarFecha(t, hoy) {
+  const [A, M, D] = hoy.split("-").map(Number);
+  const base = new Date(Date.UTC(A, M - 1, D));
+  const mas = (n) => { const d = new Date(base.getTime() + n * 86400000);
+    return fechaISO(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate()); };
+  const N = "(?:\\d{1,2}|" + Object.keys(NUM).join("|") + ")";
+  const MES = "(" + MESES_V.join("|") + ")";
+
+  let m;
+  if ((m = t.match(/pasado\s+ma(n|ñ)ana/i))) return { fecha: mas(2), desde: m.index, hasta: m.index + m[0].length };
+  if ((m = t.match(/(?<!de\s|por\s|en\s)(?<!de\s la\s)\bma(n|ñ)ana\b/i)) && !/(de|por|en)\s+la\s+ma(n|ñ)ana/i.test(t.slice(Math.max(0, m.index - 12), m.index + 8)))
+    return { fecha: mas(1), desde: m.index, hasta: m.index + m[0].length };
+  if ((m = t.match(/\bhoy\b/i))) return { fecha: hoy, desde: m.index, hasta: m.index + m[0].length };
+
+  /* 13 de octubre [del 2026] */
+  if ((m = t.match(new RegExp("(?:el\\s+)?(" + N + ")\\s+de\\s+" + MES + "(?:\\s+(?:de|del)\\s+(\\d{4}))?", "i")))) {
+    const d = aNum(m[1]), mes = MESNUM[sinTildes(m[2].toLowerCase())];
+    if (d >= 1 && d <= 31) {
+      let a = m[3] ? +m[3] : A;
+      if (!m[3] && fechaISO(a, mes, d) < hoy) { const dif = (new Date(Date.UTC(A, mes - 1, d)) - base) / 86400000; if (dif < -180) a = A + 1; }
+      return { fecha: fechaISO(a, mes, d), desde: m.index, hasta: m.index + m[0].length };
+    }
+  }
+  /* 13/10 · 13-10-2026 */
+  if ((m = t.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/))) {
+    const d = +m[1], mes = +m[2];
+    if (d <= 31 && mes <= 12) {
+      let a = m[3] ? (+m[3] < 100 ? 2000 + +m[3] : +m[3]) : A;
+      return { fecha: fechaISO(a, mes, d), desde: m.index, hasta: m.index + m[0].length };
+    }
+  }
+  /* 13 de este mes · el 13 · 13 del presente */
+  if ((m = t.match(new RegExp("(" + N + ")\\s+(?:de\\s+este\\s+mes|del\\s+presente(?:\\s+mes)?|de\\s+este)", "i")))) {
+    const d = aNum(m[1]);
+    if (d >= 1 && d <= 31) return { fecha: fechaISO(A, M, d), desde: m.index, hasta: m.index + m[0].length };
+  }
+  /* el lunes · este viernes · el próximo martes */
+  const DIA = "(" + Object.keys(DIAS_V).join("|") + ")";
+  if ((m = t.match(new RegExp("(?:el\\s+|este\\s+|proximo\\s+|próximo\\s+)?\\b" + DIA + "\\b", "i")))) {
+    const objetivo = DIAS_V[sinTildes(m[1].toLowerCase())];
+    let n = (objetivo - base.getUTCDay() + 7) % 7;
+    if (n === 0) n = 7;
+    return { fecha: mas(n), desde: m.index, hasta: m.index + m[0].length };
+  }
+  /* el 13 (día suelto) */
+  if ((m = t.match(new RegExp("\\bel\\s+(" + N + ")\\b", "i")))) {
+    const d = aNum(m[1]);
+    if (d >= 1 && d <= 31) {
+      let a = A, mes = M;
+      if (fechaISO(a, mes, d) < hoy) { mes++; if (mes > 12) { mes = 1; a++; } }
+      return { fecha: fechaISO(a, mes, d), desde: m.index, hasta: m.index + m[0].length };
+    }
+  }
+  return null;
+}
+
+/* ---- todo junto ---- */
+function interpretarDictado(texto, hoy) {
+  const t = String(texto || "").replace(/\s+/g, " ").trim();
+  if (!t) return { entidad: "", fecha: "", hora: "", observaciones: "" };
+  const h = hallarHora(t);
+  const f = hallarFecha(t, hoy);
+  const tramos = [f, h].filter(Boolean).sort((a, b) => a.desde - b.desde);
+  const corte = tramos.length ? tramos[0].desde : t.length;
+  /* Sin fecha ni hora, todo es el nombre: no tiene sentido repetirlo en
+     observaciones. */
+  const fin = tramos.length ? Math.max(...tramos.map((x) => x.hasta)) : t.length;
+
+  const limpiaBordes = (x) => x.replace(/^[\s,.;:–-]+|[\s,.;:–-]+$/g, "");
+  let entidad = limpiaBordes(t.slice(0, corte));
+  entidad = entidad.replace(/^(?:agenda(?:r|me)?|programa(?:r|me)?|anota(?:r|me)?|apunta(?:r|me)?|registra(?:r)?|nueva\s+visita|visita|inspecci(?:o|ó)n)\s+(?:a\s+|al\s+|en\s+|para\s+|de\s+)?/i, "");
+  entidad = limpiaBordes(entidad);
+
+  let obs = limpiaBordes(t.slice(fin));
+  obs = obs.replace(/^(?:y\s+|,\s*)/i, "");
+  /* el dictado suele separar los dígitos: 4 6 5 6 → 4656 */
+  obs = obs.replace(/\b(?:\d\s){3,}\d\b/g, (s) => s.replace(/\s/g, ""));
+  obs = limpiaBordes(obs);
+  if (obs) obs = obs.charAt(0).toUpperCase() + obs.slice(1);
+
+  return { entidad, fecha: f ? f.fecha : "", hora: h ? h.hora : "", observaciones: obs };
+}
+
+/* ---------------------- escuchar y volcar ----------------------
+   El reconocimiento de voz lo pone el propio navegador. Donde no existe
+   —Firefox, sobre todo— el botón sencillamente no aparece.            */
+const Escucha = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+const HAY_VOZ = !!Escucha;
+let oidor = null;
+
+function pararVoz() {
+  if (oidor) { try { oidor.abort(); } catch (e) {} oidor = null; }
+  $("#btn-voz").classList.remove("oyendo");
+  $("#voz-rot").textContent = "Dictar";
+}
+
+function dictar() {
+  if (!HAY_VOZ || !puedeTodo()) return;
+  if (oidor) return pararVoz();          /* segundo toque: cortar */
+
+  const r = new Escucha();
+  r.lang = "es-PE";
+  r.interimResults = true;               /* se va viendo lo que entiende */
+  r.continuous = false;
+  r.maxAlternatives = 1;
+  oidor = r;
+
+  $("#btn-voz").classList.add("oyendo");
+  $("#voz-rot").textContent = "Escuchando… toca para parar";
+  $("#voz-dicho").hidden = false;
+  $("#voz-dicho").textContent = "Habla: entidad, fecha, hora y lo demás.";
+
+  let dicho = "", falló = false;
+  r.onresult = (ev) => {
+    let firme = "", parcial = "";
+    for (let i = 0; i < ev.results.length; i++) {
+      const tr = ev.results[i][0].transcript;
+      if (ev.results[i].isFinal) firme += tr; else parcial += tr;
+    }
+    dicho = (firme + " " + parcial).trim();
+    $("#voz-dicho").textContent = dicho || "…";
+  };
+  r.onerror = (ev) => {
+    falló = true;
+    pararVoz();
+    const porque = ev.error === "not-allowed" || ev.error === "service-not-allowed"
+      ? "Hay que dar permiso al micrófono en el navegador."
+      : ev.error === "no-speech" ? "No se escuchó nada."
+      : ev.error === "network" ? "El reconocimiento necesita conexión."
+      : "No se pudo escuchar (" + ev.error + ").";
+    $("#voz-dicho").textContent = porque;
+  };
+  r.onend = () => {
+    pararVoz();
+    if (falló) return;                 /* el aviso del fallo ya está puesto */
+    if (dicho) volcarDictado(dicho);
+    else $("#voz-dicho").textContent = "No se escuchó nada. Toca «Dictar» para intentarlo otra vez.";
+  };
+  try { r.start(); } catch (e) { pararVoz(); }
+}
+
+/* Lo entendido se escribe en los campos, nunca se guarda solo: la visita
+   queda a la vista para revisarla y corregir antes de Guardar. */
+function volcarDictado(texto) {
+  const d = interpretarDictado(texto, S.hoy);
+  const partes = [];
+
+  if (d.entidad) {
+    /* Si lo dicho señala a UNA sola entidad del padrón, se usa su nombre
+       oficial y entran solos el código y la clase de obra. Con dos o más
+       candidatas se respeta lo dicho: es preferible que se corrija a mano
+       antes que elegir la equivocada sin avisar. */
+    const cal = buscarEntidades(d.entidad, 2);
+    const oficial = cal.length === 1 ? cal[0].nombre : d.entidad;
+    cajaEnt.value = oficial;
+    cajaEnt.dispatchEvent(new Event("input"));
+    cerrarSug();
+    partes.push(cal.length === 1 ? "entidad (del padrón)" : "entidad");
+  }
+  if (d.fecha) { $("#f-fecha").value = d.fecha; partes.push("fecha"); }
+  if (d.hora) { $("#f-hora").value = d.hora; partes.push("hora"); }
+  if (d.observaciones) {
+    const previo = $("#f-obs").value.trim();
+    $("#f-obs").value = previo ? previo + " " + d.observaciones : d.observaciones;
+    partes.push("observaciones");
+  }
+  $("#voz-dicho").textContent = "«" + texto + "»"
+    + (partes.length ? " → " + partes.join(", ") + ". Revisa y guarda." : " → no se reconoció fecha ni hora.");
+}
+
+$("#btn-voz").addEventListener("click", dictar);
+$("#btn-voz-nueva").addEventListener("click", () => { abrir(null); setTimeout(dictar, 120); });
 
 /* ---------------------- descarga en Excel ----------------------
    Escribe un .xlsx válido sin librerías externas: el archivo es un ZIP
