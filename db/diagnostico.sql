@@ -21,6 +21,16 @@ select 'columna visitas.estado',
                  where table_schema='public' and table_name='visitas' and column_name='estado'),
                 'FALTA — ejecutar migracion-01')
 union all
+select 'columna editores.admin',
+       coalesce((select 'existe' from information_schema.columns
+                 where table_schema='public' and table_name='editores' and column_name='admin'),
+                'FALTA — ejecutar migracion-05')
+union all
+select 'función es_admin()',
+       coalesce((select 'existe' from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+                 where n.nspname='public' and p.proname='es_admin' limit 1),
+                'FALTA — ejecutar migracion-05')
+union all
 select 'tabla entidades (padrón)',
        coalesce((select 'existe' from information_schema.tables
                  where table_schema='public' and table_name='entidades'),
