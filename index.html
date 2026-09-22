@@ -587,7 +587,7 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
         </div>
         <div class="campo">
           <label for="f-hora">Hora</label>
-          <input type="time" id="f-hora" required step="900">
+          <input type="time" id="f-hora" required step="60">   <!-- cualquier minuto: las visitas no caen en cuartos de hora -->
         </div>
       </div>
       <div class="campo">
@@ -855,7 +855,7 @@ const HAY_SERVIDOR = !!(CONFIG.supabase.url && CONFIG.supabase.anonKey);
 /* La última agenda recibida queda guardada en el propio dispositivo, para
    pintarla al instante en la siguiente apertura mientras llega la de verdad.
    Si el acceso es privado, solo se usa con sesión abierta.                 */
-const VERSION = "2026.09.19";   /* se muestra en el pie, para saber qué versión corre cada aparato */
+const VERSION = "2026.09.22";   /* se muestra en el pie, para saber qué versión corre cada aparato */
 const CACHE = "agenda-cache-v1";
 function leerCache() {
   if (!HAY_SERVIDOR) return null;
