@@ -753,6 +753,8 @@ async function storeClaudeDb() {
    permanente, porque un cartel que pasa en dos segundos se pierde. */
 const faltantes = new Set();
 const MIGRACION = { estado: "01", tipo: "02", codigo: "06" };   /* columnas que faltan; los valores rechazados van en REGLA */
+/* Valores que la base rechaza todavía → la migración que los habilita. */
+const rechazos = new Map();
 
 /* La base valida los estados permitidos. Si rechaza uno, es que falta la
    migración que lo agrega: se dice eso, y no el error crudo de Postgres. */
@@ -817,8 +819,12 @@ async function storeSupabase(cfg) {
           return;
         }
         const regla = reglaRota(error);
-        if (regla) throw new Error("La base todavía no acepta " + regla.que
-          + ". Ejecuta la migración " + regla.mig + " en Supabase.");
+        if (regla) {
+          rechazos.set(regla.que, regla.mig);
+          render();
+          throw new Error("La base todavía no acepta " + regla.que
+            + ". Ejecuta la migración " + regla.mig + " en Supabase.");
+        }
         const falta = columnaFaltante(error);
         if (!falta || !(falta in fila)) throw error;
         delete fila[falta];
@@ -1276,14 +1282,20 @@ function renderAviso() {
     const b = $("#aviso-entrar"); if (b) b.onclick = () => $("#btn-edicion").click();
   } else if (S.store && S.store.tipo === "local") {
     c.innerHTML = '<div class="aviso"><span><b>Modo local.</b> La agenda se guarda solo en este navegador.</span></div>';
-  } else if (faltantes.size) {
+  } else if (faltantes.size || rechazos.size) {
     /* La base va por detrás de la app: se dice qué se está perdiendo y qué
        archivo hay que ejecutar, en vez de dejar que el dato se caiga en
-       silencio.                                                          */
+       silencio. Cubre las dos formas de ir por detrás: la columna que no
+       existe y el valor que la base no admite todavía.                   */
     const cols = Array.from(faltantes);
-    const migs = Array.from(new Set(cols.map((x) => MIGRACION[x]).filter(Boolean))).sort();
-    c.innerHTML = '<div class="aviso falta"><span><b>Falta actualizar la base.</b> Lo que escribas en '
-      + cols.map((x) => "<b>" + esc(x) + "</b>").join(" y ") + " no se está guardando"
+    const vals = Array.from(rechazos.keys());
+    const migs = Array.from(new Set(
+      cols.map((x) => MIGRACION[x]).concat(Array.from(rechazos.values())).filter(Boolean)
+    )).sort();
+    const queja = cols.length
+      ? "Lo que escribas en " + cols.map((x) => "<b>" + esc(x) + "</b>").join(" y ") + " no se está guardando"
+      : "No se puede guardar " + vals.map((x) => "<b>" + esc(x) + "</b>").join(" ni ");
+    c.innerHTML = '<div class="aviso falta"><span><b>Falta actualizar la base.</b> ' + queja
       + (migs.length ? ". Ejecuta en Supabase la migración " + migs.map((m) => "<b>" + m + "</b>").join(" y la ") : "")
       + ".</span></div>";
   } else c.innerHTML = "";
