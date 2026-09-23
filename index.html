@@ -555,8 +555,8 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
       <h3 class="titulo-sec">Padrón de entidades</h3>
       <p class="ayuda" id="admin-estado"></p>
       <div class="campo">
-        <label for="ad-archivo">Archivo del padrón (CSV)</label>
-        <input type="file" id="ad-archivo" accept=".csv,.txt,text/csv">
+        <label for="ad-archivo">Archivo del padrón (Excel o CSV)</label>
+        <input type="file" id="ad-archivo" accept=".xlsx,.csv,.txt,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
       </div>
       <div class="campo">
         <label for="ad-texto">O pegar las filas</label>
@@ -2229,6 +2229,94 @@ $("#form-acceso").addEventListener("submit", async (ev) => {
    Solo la ve quien esté marcado como administrador. El padrón alimenta las
    sugerencias del campo Entidad; escribir un nombre fuera de él sigue
    permitido.                                                              */
+/* ---------------------- leer un .xlsx ----------------------
+   Un Excel es un ZIP con XML adentro. El navegador sabe descomprimir
+   (DecompressionStream) y leer XML, así que no hace falta ninguna
+   librería: se busca la primera hoja y se devuelve su cuadrícula.     */
+async function inflar(datos, metodo) {
+  if (metodo === 0) return datos;                    /* guardado sin comprimir */
+  const ds = new DecompressionStream("deflate-raw");
+  const flujo = new Blob([datos]).stream().pipeThrough(ds);
+  return new Uint8Array(await new Response(flujo).arrayBuffer());
+}
+
+/* Recorre el ZIP por sus encabezados locales: alcanza y evita depender
+   del directorio central, que algunos programas escriben distinto. */
+async function archivosZip(buf) {
+  const v = new DataView(buf), u = new Uint8Array(buf), fuera = new Map();
+  let i = 0;
+  while (i + 30 <= u.length) {
+    if (v.getUint32(i, true) !== 0x04034b50) break;
+    const metodo = v.getUint16(i + 8, true);
+    let comp = v.getUint32(i + 18, true);
+    const nLargo = v.getUint16(i + 26, true), eLargo = v.getUint16(i + 28, true);
+    const nombre = new TextDecoder().decode(u.subarray(i + 30, i + 30 + nLargo));
+    let ini = i + 30 + nLargo + eLargo;
+    if (!comp && (v.getUint16(i + 6, true) & 8)) {
+      /* Tamaño en el descriptor posterior: se busca la firma siguiente. */
+      let j = ini;
+      while (j + 4 <= u.length && v.getUint32(j, true) !== 0x08074b50) j++;
+      comp = j - ini;
+      fuera.set(nombre, { metodo, datos: u.subarray(ini, j) });
+      i = j + 16;
+      continue;
+    }
+    fuera.set(nombre, { metodo, datos: u.subarray(ini, ini + comp) });
+    i = ini + comp;
+  }
+  return fuera;
+}
+
+const desXML = (x) => String(x).replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+  .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+  .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(+n))
+  .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+  .replace(/&amp;/g, "&");
+
+/* Devuelve la primera hoja como cuadrícula de textos. */
+async function leerExcel(archivo) {
+  const zip = await archivosZip(await archivo.arrayBuffer());
+  const texto = async (n) => {
+    const e = zip.get(n);
+    return e ? new TextDecoder().decode(await inflar(e.datos, e.metodo)) : "";
+  };
+  /* Cadenas compartidas: Excel guarda los textos repetidos una sola vez. */
+  const compartidas = [];
+  const ss = await texto("xl/sharedStrings.xml");
+  if (ss) for (const m of ss.matchAll(/<si>([\s\S]*?)<\/si>/g)) {
+    compartidas.push(Array.from(m[1].matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)).map((t) => desXML(t[1])).join(""));
+  }
+  const nombreHoja = Array.from(zip.keys()).filter((k) => /^xl\/worksheets\/sheet\d+\.xml$/.test(k))
+    .sort()[0];
+  if (!nombreHoja) throw new Error("El archivo no tiene hojas legibles.");
+  const hoja = await texto(nombreHoja);
+
+  const cuadro = [];
+  for (const rm of hoja.matchAll(/<row[^>]*>([\s\S]*?)<\/row>/g)) {
+    const fila = [];
+    for (const cm of rm[1].matchAll(/<c ([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+      const attrs = cm[1], cuerpo = cm[2] || "";
+      const ref = (attrs.match(/r="([A-Z]+)\d+"/) || [])[1];
+      let j = fila.length;
+      if (ref) { j = 0; for (const ch of ref) j = j * 26 + (ch.charCodeAt(0) - 64); j--; }
+      const tipo = (attrs.match(/t="([^"]+)"/) || [])[1] || "";
+      let val = "";
+      if (tipo === "inlineStr") {
+        val = Array.from(cuerpo.matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)).map((t) => desXML(t[1])).join("");
+      } else {
+        const v = (cuerpo.match(/<v>([\s\S]*?)<\/v>/) || [])[1];
+        if (v !== undefined) val = tipo === "s" ? (compartidas[+v] || "") : desXML(v);
+      }
+      while (fila.length < j) fila.push("");
+      fila[j] = val;
+    }
+    cuadro.push(fila);
+  }
+  return cuadro;
+}
+
+/* El archivo puede venir como texto separado o como cuadrícula de Excel:
+   se convierte a cuadrícula y de ahí en adelante el camino es el mismo. */
 function parsePadron(texto) {
   const lineas = String(texto).replace(/\r/g, "").split("\n").filter((l) => l.trim() !== "");
   if (!lineas.length) return [];
@@ -2245,12 +2333,35 @@ function parsePadron(texto) {
     out.push(cur.trim());
     return out;
   };
-  const norm = (x) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "");
-  const cab = fila(lineas[0]).map(norm);
-  const col = (...alias) => cab.findIndex((c) => alias.some((a) => c === a || c.startsWith(a)));
+  return padronDeCuadro(lineas.map(fila));
+}
+
+function padronDeCuadro(cuadro) {
+  const norm = (x) => String(x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "");
+  /* El cuadro de control trae título, carpeta y totales antes de la tabla:
+     la fila de encabezados es la primera que nombra código y titular. */
+  let cabFila = 0;
+  for (let i = 0; i < Math.min(cuadro.length, 40); i++) {
+    const t = cuadro[i].map(norm);
+    if (t.some((c) => c.startsWith("codigo")) && t.some((c) => c.includes("titular") || c.startsWith("entidad") || c.startsWith("nombre"))) { cabFila = i; break; }
+  }
+  const lineas = cuadro.slice(cabFila);
+  const fila = (f) => f;
+  const cab = lineas[0].map(norm);
+  /* Los alias se prueban EN ORDEN: el más específico primero. Si se
+     buscara columna por columna, "TIPO DE TITULAR" ganaría sobre "TIPO DE
+     INFRAESTRUCTURA" solo por estar antes en la hoja. */
+  const col = (...alias) => {
+    for (const a of alias) {
+      const j = cab.findIndex((c) => c === a || c.startsWith(a));
+      if (j >= 0) return j;
+    }
+    return -1;
+  };
   const idx = {
     codigo: col("codigo", "cod", "clave", "id"),
     nombre: col("titular", "entidad", "nombre", "razonsocial", "denominacion", "administrado"),
+    negocio: col("nombredenegocio", "nombrenegocio", "negocio", "nombrecomercial"),
     tipo: col("tipodeinfraestructura", "tipoinfraestructura", "tipo", "infraestructura", "clasedeobra", "claseobra"),
     ubicacion: col("ubicacion", "distrito", "provincia", "departamento", "region", "localidad")
   };
@@ -2286,13 +2397,35 @@ function parsePadron(texto) {
     const e = t.includes("EDIFICACI"), u = t.includes("SUPERFICIE");
     return e && u ? "ambas" : e ? "edificaciones" : u ? "superficies" : "";
   };
+  /* El equipo llama a los titulares por el nombre del negocio; el registro
+     los identifica por la razón social. Se ponen los dos, el negocio
+     primero, salvo que juntos no quepan de un vistazo. */
+  const LARGO_MAX = 80;
+  const MARCADORES = ["", "-", "--", "N/A", "NA", "NO CORRESPONDE", "POR CONFIRMAR", "PENDIENTE", "VISITAR NUEVAMENTE"];
+  const sirve = (x) => !MARCADORES.includes(limpiar(x).toUpperCase());
+  const juntar = (titular, negocio) => {
+    const tt = limpiar(titular), nn = limpiar(negocio);
+    const t = sirve(tt), n = sirve(nn);
+    if (!t && !n) return "";
+    if (!n) return tt;
+    if (!t) return nn;
+    if (tt.toUpperCase().includes(nn.toUpperCase())) return tt;   /* uno ya contiene al otro */
+    if (nn.toUpperCase().includes(tt.toUpperCase())) return nn;
+    const junto = nn + " - " + tt;
+    return junto.length <= LARGO_MAX ? junto : nn;
+  };
+
   const filas = [], vistos = new Set();
   for (let i = 1; i < lineas.length; i++) {
     const c = fila(lineas[i]);
-    const nombre = limpiar(c[idx.nombre]);
+    let nombre = idx.negocio >= 0
+      ? juntar(c[idx.nombre], c[idx.negocio])
+      : (sirve(c[idx.nombre]) ? limpiar(c[idx.nombre]) : "");
     let codigo = limpiar(c[idx.codigo]);
     if (codigo === "-" || codigo === "--" || /^n\/?a$/i.test(codigo)) codigo = "";
-    if (!nombre) continue;
+    /* Sin ningún nombre útil, la fila se conserva solo si tiene código:
+       es una visita pendiente de identificar al titular. */
+    if (!nombre) { if (!codigo) continue; nombre = "VISITAR NUEVAMENTE - " + codigo; }
     const llave = nombre.toLowerCase();
     if (vistos.has(llave)) continue;          /* una entidad, una sugerencia */
     vistos.add(llave);
@@ -2343,12 +2476,23 @@ function abrirAdmin() {
 $("#btn-admin").addEventListener("click", abrirAdmin);
 $("#ad-cerrar").addEventListener("click", () => $("#dlg-admin").close());
 $("#ad-revisar").addEventListener("click", async () => {
-  let texto = $("#ad-texto").value.trim();
+  const texto = $("#ad-texto").value.trim();
   const f = $("#ad-archivo").files && $("#ad-archivo").files[0];
-  if (!texto && f) texto = await f.text();
-  const filas = parsePadron(texto);
+  let filas = [], fallo = "";
+  try {
+    if (!texto && f && /\.xlsx$/i.test(f.name)) filas = padronDeCuadro(await leerExcel(f));
+    else filas = parsePadron(texto || (f ? await f.text() : ""));
+  } catch (e) {
+    console.warn("padrón:", e);
+    fallo = /\.xls$/i.test(f ? f.name : "")
+      ? "Ese archivo es un Excel antiguo (.xls). Ábrelo y guárdalo como .xlsx o como CSV."
+      : "No se pudo leer el archivo (" + (e.message || e) + "). Si es un Excel, guárdalo como CSV e inténtalo de nuevo.";
+  }
   if (!filas.length) {
-    $("#ad-resumen").innerHTML = '<p class="ayuda">No se reconocieron filas. La primera línea debe ser el encabezado y tiene que haber una columna con el nombre de la entidad.</p>';
+    $("#ad-resumen").innerHTML = '<p class="ayuda">' + esc(fallo
+      || (f || texto
+        ? "No se reconocieron filas. Tiene que haber una columna con el código y otra con el nombre del titular."
+        : "Elige un archivo o pega el contenido antes de revisar.")) + "</p>";
     $("#ad-aplicar").hidden = true;
     return;
   }
