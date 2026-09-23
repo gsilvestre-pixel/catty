@@ -1,21 +1,38 @@
 # Padrón de entidades
 
-`padron.csv` es el padrón que alimenta las sugerencias del campo **Entidad**
-en la agenda. Se generó desde el cuadro de control en Excel:
+El padrón alimenta las sugerencias del campo **Entidad** en la agenda.
+
+## Cómo cargarlo
+
+Con la sesión de administrador abierta: **Administrar → Archivo del padrón →
+Revisar cambios → Aplicar**. Antes de aplicar muestra qué entra, qué cambia
+y qué sale.
+
+Acepta el **.xlsx tal cual**: la agenda lo lee sin librerías, descomprimiendo
+el ZIP con el propio navegador. También acepta CSV, por si hiciera falta.
+
+Busca sola la fila de encabezados y toma las columnas **CODIGO**, **NOMBRE
+DEL TITULAR DE INFRAESTRUCTURA**, **NOMBRE DE NEGOCIO** y **TIPO DE
+INFRAESTRUCTURA**; descarta las demás.
+
+## El nombre de cada entidad
+
+Lleva las dos formas en que el equipo la conoce, el negocio primero:
+
+    TIENDAS MASS - COMPAÑIA HARD DISCOUNT S.A.C.
+
+Si falta uno de los dos queda el que haya; si uno ya contiene al otro no se
+repite; y si juntos pasan de 80 caracteres queda solo el negocio, porque un
+nombre de cuatro líneas no se lee en el celular.
+
+## El mismo padrón en texto
+
+`padron.csv` es el resultado en CSV, útil para revisarlo fuera de la agenda.
+Se genera con:
 
 ```
 node tools/padron-desde-excel.mjs "CONTROL DE INFORMACIÓN - CARTAS INFRAESTRUCTURA.xlsx" CONTROL > datos/padron.csv
 ```
-
-La herramienta busca sola la fila de encabezados, toma las columnas
-**CODIGO**, **NOMBRE DEL TITULAR DE INFRAESTRUCTURA** y **TIPO DE
-INFRAESTRUCTURA**, descarta las demás y deja una fila por entidad.
-
-## Cómo cargarlo
-
-En la agenda, con la sesión de administrador abierta: botón **Administrar →
-Archivo del padrón → Revisar cambios → Aplicar**. Antes de aplicar muestra
-qué entra, qué cambia y qué sale.
 
 ## Reglas del padrón
 
