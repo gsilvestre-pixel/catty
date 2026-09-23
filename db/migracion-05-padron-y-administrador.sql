@@ -58,10 +58,16 @@ alter table public.entidades drop constraint if exists entidades_tipo_check;
 alter table public.entidades
   add constraint entidades_tipo_check check (tipo in ('', 'edificaciones', 'superficies', 'ambas'));
 
--- Una entidad, una fila: el nombre no se repite (sin distinguir mayúsculas).
-create unique index if not exists entidades_nombre_uniq on public.entidades (lower(nombre));
--- El código sí puede quedar vacío, pero si está, es único.
-create unique index if not exists entidades_codigo_uniq on public.entidades (codigo) where codigo <> '';
+-- Una entidad, una fila. El índice tiene que ser sobre la columna tal cual:
+-- uno sobre lower(nombre) sería más estricto, pero PostgreSQL no lo acepta
+-- como destino de un "upsert por nombre", que es como carga el padrón.
+drop index if exists public.entidades_nombre_uniq;
+create unique index if not exists entidades_nombre_uniq on public.entidades (nombre);
+
+-- El código se repite lo menos posible, pero no se declara único: 33 de las
+-- 173 entidades no tienen, y renombrar una obligaría a borrarla antes.
+drop index if exists public.entidades_codigo_uniq;
+create index if not exists entidades_codigo_idx on public.entidades (codigo) where codigo <> '';
 
 drop trigger if exists entidades_actualizado on public.entidades;
 create trigger entidades_actualizado before update on public.entidades

@@ -135,6 +135,7 @@ main{padding-bottom:56px}
 .aviso b{color:var(--ink)}
 .aviso.falta{border-color:color-mix(in srgb, var(--mal) 45%, var(--line)); background:var(--mal-soft); color:var(--mal)}
 .aviso.falta b{color:var(--mal)}
+.falla{color:var(--mal)}
 .aviso.nov{border-color:color-mix(in srgb, var(--accent) 45%, var(--line)); background:var(--accent-soft); color:var(--accent-ink); flex-wrap:wrap}
 .aviso.nov .btn{margin-left:0}
 .aviso.nov .btn:first-of-type{margin-left:auto}
@@ -846,18 +847,13 @@ async function storeSupabase(cfg) {
       return data || [];
     },
     async guardarPadron(filas, bajas) {
-      /* Las que traen código se resuelven por código —así renombrar una
-         entidad actualiza su fila en vez de duplicarla—; las que no, por
-         nombre. En lotes, para no chocar con el límite de la petición. */
-      const grupos = [
-        [filas.filter((f) => f.codigo), "codigo"],
-        [filas.filter((f) => !f.codigo), "nombre"]
-      ];
-      for (const [lote, llave] of grupos) {
-        for (let i = 0; i < lote.length; i += 500) {
-          const { error } = await sb.from("entidades").upsert(lote.slice(i, i + 500), { onConflict: llave });
-          if (error) throw error;
-        }
+      /* Todo se resuelve por nombre, que es la llave del padrón y la única
+         columna con índice único: PostgreSQL exige que el destino de un
+         upsert sea un índice sobre la columna tal cual. En lotes, para no
+         chocar con el límite de la petición.                            */
+      for (let i = 0; i < filas.length; i += 500) {
+        const { error } = await sb.from("entidades").upsert(filas.slice(i, i + 500), { onConflict: "nombre" });
+        if (error) throw error;
       }
       if (bajas && bajas.length) {
         const { error } = await sb.from("entidades").delete().in("nombre", bajas);
@@ -2521,7 +2517,14 @@ $("#form-admin").addEventListener("submit", async (ev) => {
     $("#dlg-admin").close();
     toast("Padrón actualizado: " + S.padron.length + " entidades.");
     render();
-  } catch (e) { toast("No se pudo actualizar: " + (e.message || e.code)); }
+  } catch (e) {
+    const msg = e.message || e.code || String(e);
+    $("#ad-resumen").innerHTML = '<p class="ayuda falla"><b>No se pudo aplicar.</b> ' + esc(msg)
+      + (/ON CONFLICT|unique|exclusion/i.test(msg)
+        ? " — a la tabla del padrón le falta el índice único sobre «nombre»: vuelve a ejecutar la migración 05."
+        : "") + "</p>";
+    toast("No se pudo actualizar: " + msg);
+  }
 });
 
 /* colores de la aplicación (se recuerdan en el dispositivo) */
