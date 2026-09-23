@@ -913,7 +913,7 @@ const HAY_SERVIDOR = !!(CONFIG.supabase.url && CONFIG.supabase.anonKey);
 /* La última agenda recibida queda guardada en el propio dispositivo, para
    pintarla al instante en la siguiente apertura mientras llega la de verdad.
    Si el acceso es privado, solo se usa con sesión abierta.                 */
-const VERSION = "2026.09.23";   /* se muestra en el pie, para saber qué versión corre cada aparato */
+const VERSION = "2026.09.23b";   /* se muestra en el pie, para saber qué versión corre cada aparato */
 const CACHE = "agenda-cache-v1";
 function leerCache() {
   if (!HAY_SERVIDOR) return null;
@@ -1853,6 +1853,42 @@ function hallarFecha(t, hoy) {
   return null;
 }
 
+/* ---- el preámbulo ----
+   Casi nadie dicta el nombre a secas: dice "quiero que programes a Juan
+   Pérez", "por favor agéndame una visita al colegio". Todo eso sobra: la
+   entidad es a quién se va a visitar.                                   */
+const PREAMBULOS = [
+  { re: /^(?:por\s+favor|porfa|oye|hola|buenas?(?:\s+d(?:i|í)as|\s+tardes|\s+noches)?)\b[\s,]*/i },
+  { re: /^(?:quiero|quisiera|necesito|deseo|me\s+gustar(?:i|í)a|podr(?:i|í)as|puedes|puede|hay\s+que|vamos\s+a|tenemos\s+que|favor\s+de|ay(?:u|ú)dame\s+a)\b[\s,]*/i },
+  { re: /^(?:que|de)\s+/i },
+  /* Raíz + terminación: cubre "programa", "programes", "prográmame",
+     "agendar", "anótame"… sin listar cada conjugación. */
+  { re: /^(?:me\s+|nos\s+)?(?:pr[oó]gram|ag[eé]nd|an[oó]t|ap[uú]nt|reg[ií]str|coordin|inspeccion|agreg|visit|cre)(?:a|e|ar|es|en|as)?(?:me|nos|lo|la)?\b[\s,]*/i, verbo: true },
+  { re: /^(?:me\s+|nos\s+)?(?:pon(?:er|me|ga|gas|gan)?|p[oó]n(?:game|nos)?)\b[\s,]*/i, verbo: true },
+  { re: /^(?:una|un|la|el)\s+(?:nueva\s+|otra\s+)?(?:visita|inspecci(?:o|ó)n|cita)\b[\s,]*/i, verbo: true },
+  { re: /^(?:nueva\s+)?(?:visita|inspecci(?:o|ó)n|cita)\b[\s,]*/i, verbo: true },
+  /* Las preposiciones solo se quitan detrás de un verbo: "a la escuela"
+     sin verbo delante bien puede ser el nombre mismo. */
+  { re: /^(?:a\s+la|a\s+los|a\s+las|al|a|con|para|en|hacia|donde|de|del|el|la|los|las|un|una)\s+/i, trasVerbo: true }
+];
+function quitarPreambulo(texto) {
+  let t = texto, huboVerbo = false;
+  for (let vuelta = 0; vuelta < 6; vuelta++) {
+    let cambió = false;
+    for (const p of PREAMBULOS) {
+      if (p.trasVerbo && !huboVerbo) continue;
+      const resto = t.replace(p.re, "");
+      if (resto !== t && resto.trim()) {     /* nunca dejarlo vacío */
+        t = resto;
+        cambió = true;
+        if (p.verbo) huboVerbo = true;
+      }
+    }
+    if (!cambió) break;
+  }
+  return t.replace(/^[\s,.;:–-]+/, "");
+}
+
 /* ---- todo junto ---- */
 function interpretarDictado(texto, hoy) {
   const t = String(texto || "").replace(/\s+/g, " ").trim();
@@ -1866,9 +1902,7 @@ function interpretarDictado(texto, hoy) {
   const fin = tramos.length ? Math.max(...tramos.map((x) => x.hasta)) : t.length;
 
   const limpiaBordes = (x) => x.replace(/^[\s,.;:–-]+|[\s,.;:–-]+$/g, "");
-  let entidad = limpiaBordes(t.slice(0, corte));
-  entidad = entidad.replace(/^(?:agenda(?:r|me)?|programa(?:r|me)?|anota(?:r|me)?|apunta(?:r|me)?|registra(?:r)?|nueva\s+visita|visita|inspecci(?:o|ó)n)\s+(?:a\s+|al\s+|en\s+|para\s+|de\s+)?/i, "");
-  entidad = limpiaBordes(entidad);
+  let entidad = quitarPreambulo(limpiaBordes(t.slice(0, corte)));
 
   let obs = limpiaBordes(t.slice(fin));
   obs = obs.replace(/^(?:y\s+|,\s*)/i, "");
@@ -1885,41 +1919,87 @@ function interpretarDictado(texto, hoy) {
    —Firefox, sobre todo— el botón sencillamente no aparece.            */
 const Escucha = window.SpeechRecognition || window.webkitSpeechRecognition || null;
 const HAY_VOZ = !!Escucha;
-let oidor = null;
+let oidor = null, relojSilencio = null, relojTope = null, queremosOir = false, cerrarActual = null;
+
+/* El navegador corta al primer silencio y no deja configurar cuánto
+   espera, así que el tiempo se maneja aquí: se escucha de corrido y se
+   corta tras SILENCIO sin oír nada, o al llegar al TOPE. */
+const SILENCIO = 7000;      /* pausa admitida mientras se piensa qué decir */
+const TOPE = 120000;        /* nadie dicta una visita en más de dos minutos */
 
 function pararVoz() {
-  if (oidor) { try { oidor.abort(); } catch (e) {} oidor = null; }
+  queremosOir = false; cerrarActual = null;
+  clearTimeout(relojSilencio); clearTimeout(relojTope);
+  if (oidor) { try { oidor.onend = null; oidor.stop(); oidor.abort(); } catch (e) {} oidor = null; }
   $("#btn-voz").classList.remove("oyendo");
   $("#voz-rot").textContent = "Dictar";
 }
 
 function dictar() {
   if (!HAY_VOZ || !puedeTodo()) return;
-  if (oidor) return pararVoz();          /* segundo toque: cortar */
+  /* Segundo toque: cortar, pero volcando lo que ya se dijo —descartarlo
+     obligaría a repetirlo entero. */
+  if (oidor) return cerrarActual ? cerrarActual() : pararVoz();
 
-  const r = new Escucha();
-  r.lang = "es-PE";
-  r.interimResults = true;               /* se va viendo lo que entiende */
-  r.continuous = false;
-  r.maxAlternatives = 1;
-  oidor = r;
+  let dicho = "", falló = false;
+  queremosOir = true;
+
+  const reiniciarSilencio = () => {
+    clearTimeout(relojSilencio);
+    relojSilencio = setTimeout(cerrarDictado, SILENCIO);
+  };
+  const cerrarDictado = () => {
+    const texto = dicho || base;
+    pararVoz();
+    if (falló) return;
+    if (texto) volcarDictado(texto);
+    else $("#voz-dicho").textContent = "No se escuchó nada. Toca «Dictar» para intentarlo otra vez.";
+  };
+
+  /* El motor se apaga solo cada cierto rato; mientras sigamos queriendo
+     oír, se vuelve a levantar sin que se note. */
+  const arrancar = () => {
+    const r = new Escucha();
+    r.lang = "es-PE";
+    r.interimResults = true;             /* se va viendo lo que entiende */
+    r.continuous = true;
+    r.maxAlternatives = 1;
+    oidor = r;
+    let firmeAqui = "";
+    r.onresult = (ev) => {
+      let firme = "", parcial = "";
+      for (let i = 0; i < ev.results.length; i++) {
+        const tr = ev.results[i][0].transcript;
+        if (ev.results[i].isFinal) firme += tr; else parcial += tr;
+      }
+      firmeAqui = firme;
+      dicho = (base + " " + firme + " " + parcial).replace(/\s+/g, " ").trim();
+      $("#voz-dicho").textContent = dicho || "…";
+      reiniciarSilencio();
+    };
+    r.onend = () => {
+      base = (base + " " + firmeAqui).replace(/\s+/g, " ").trim();
+      if (!queremosOir) return;
+      /* Si el motor se apagara una y otra vez sin oír nada —sin micrófono,
+         por ejemplo—, relanzarlo sin freno dejaría el aparato girando. */
+      if (++reinicios > 30) return cerrarDictado();
+      setTimeout(() => { if (queremosOir) { try { arrancar(); } catch (e) { cerrarDictado(); } } }, 250);
+    };
+    r.onerror = manejarError;
+    try { r.start(); } catch (e) { queremosOir = false; pararVoz(); }
+  };
+  let base = "", reinicios = 0;
 
   $("#btn-voz").classList.add("oyendo");
   $("#voz-rot").textContent = "Escuchando… toca para parar";
   $("#voz-dicho").hidden = false;
-  $("#voz-dicho").textContent = "Habla: entidad, fecha, hora y lo demás.";
+  $("#voz-dicho").textContent = "Habla sin apuro: entidad, fecha, hora y lo demás.";
+  cerrarActual = cerrarDictado;
+  reiniciarSilencio();
+  relojTope = setTimeout(cerrarDictado, TOPE);
 
-  let dicho = "", falló = false;
-  r.onresult = (ev) => {
-    let firme = "", parcial = "";
-    for (let i = 0; i < ev.results.length; i++) {
-      const tr = ev.results[i][0].transcript;
-      if (ev.results[i].isFinal) firme += tr; else parcial += tr;
-    }
-    dicho = (firme + " " + parcial).trim();
-    $("#voz-dicho").textContent = dicho || "…";
-  };
-  r.onerror = (ev) => {
+  function manejarError(ev) {
+    if (ev.error === "no-speech" && queremosOir) return;   /* la pausa la mide el reloj */
     falló = true;
     pararVoz();
     const porque = ev.error === "not-allowed" || ev.error === "service-not-allowed"
@@ -1928,14 +2008,8 @@ function dictar() {
       : ev.error === "network" ? "El reconocimiento necesita conexión."
       : "No se pudo escuchar (" + ev.error + ").";
     $("#voz-dicho").textContent = porque;
-  };
-  r.onend = () => {
-    pararVoz();
-    if (falló) return;                 /* el aviso del fallo ya está puesto */
-    if (dicho) volcarDictado(dicho);
-    else $("#voz-dicho").textContent = "No se escuchó nada. Toca «Dictar» para intentarlo otra vez.";
-  };
-  try { r.start(); } catch (e) { pararVoz(); }
+  }
+  arrancar();
 }
 
 /* Lo entendido se escribe en los campos, nunca se guarda solo: la visita
