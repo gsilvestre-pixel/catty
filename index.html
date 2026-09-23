@@ -909,7 +909,7 @@ const HAY_SERVIDOR = !!(CONFIG.supabase.url && CONFIG.supabase.anonKey);
 /* La última agenda recibida queda guardada en el propio dispositivo, para
    pintarla al instante en la siguiente apertura mientras llega la de verdad.
    Si el acceso es privado, solo se usa con sesión abierta.                 */
-const VERSION = "2026.09.22";   /* se muestra en el pie, para saber qué versión corre cada aparato */
+const VERSION = "2026.09.23";   /* se muestra en el pie, para saber qué versión corre cada aparato */
 const CACHE = "agenda-cache-v1";
 function leerCache() {
   if (!HAY_SERVIDOR) return null;
@@ -2106,7 +2106,7 @@ function pintarAcceso() {
   const porClave = accesoModo === "clave";
   $("#acceso-titulo").textContent = porClave ? "Acceso" : "Entrar con un código";
   $("#acceso-ayuda").innerHTML = porClave
-    ? "Escribe el correo y la contraseña que te entregaron. La sesión queda guardada en este dispositivo."
+    ? "Escribe tu correo y tu contraseña. La sesión queda guardada en este dispositivo y no hay que repetirla cada día."
     : (accesoPaso === 1
       ? "Te enviaremos un código a tu correo. Escríbelo <b>en este mismo dispositivo</b>: así la sesión queda aquí y no en otro equipo."
       : "Revisa tu correo, también la carpeta de no deseados, y escribe aquí el código.");
@@ -2118,10 +2118,11 @@ function pintarAcceso() {
 }
 function abrirAcceso(modo) {
   accesoPaso = 1;
-  /* Mientras la agenda siga abierta, el acceso sigue siendo por código,
-     como hasta ahora; la contraseña se vuelve el camino principal recién
-     cuando se active el acceso privado.                                  */
-  accesoModo = modo || (CONFIG.acceso.privado ? "clave" : "codigo");
+  /* La contraseña es el camino principal: el correo de cortesía admite
+     muy pocos envíos por hora para todo el proyecto, así que ofrecerlo
+     primero lleva derecho al tope. El código queda como salida para quien
+     no la recuerde.                                                      */
+  accesoModo = modo || "clave";
   $("#a-codigo").value = "";
   $("#a-clave").value = "";
   if (!$("#dlg-acceso").open) $("#dlg-acceso").showModal();
