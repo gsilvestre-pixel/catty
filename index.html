@@ -266,6 +266,8 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
    medio se distingue; una mitad y mitad simple se ve como un color solo. */
 .pt.amb,.leyenda i.amb{background:linear-gradient(135deg,var(--edif) 0 46%,#fff 46% 54%,var(--sup) 54% 100%)}
 .pista{margin:5px 0 0; font-size:12px; color:var(--ink-2)}
+#pie-sesion{background:none; border:0; padding:0; font:inherit; color:var(--accent-ink); font-weight:600;
+  text-decoration:underline; text-decoration-style:dotted; text-underline-offset:3px; cursor:pointer}
 #pie-version{opacity:.6; background:none; border:0; padding:0; font:inherit; color:inherit;
   text-decoration:underline; text-decoration-style:dotted; text-underline-offset:3px; cursor:pointer}
 #pie-version:hover{opacity:1}
@@ -530,7 +532,7 @@ textarea{resize:vertical; min-height:64px; font-family:var(--sans)}
     <span><i class="sup"></i> Infraestructura de superficies</span>
     <span><i class="amb"></i> Ambas</span>
   </div>
-  <p class="pie"><span id="pie-fuente">—</span><span id="pie-cuenta"></span><button type="button" id="pie-version" title="Trae del servidor la última versión de la app"></button></p>
+  <p class="pie"><span id="pie-fuente">—</span><span id="pie-cuenta"></span><button type="button" id="pie-sesion" hidden></button><button type="button" id="pie-version" title="Trae del servidor la última versión de la app"></button></p>
 </main>
 
 <button class="fab" id="fab" hidden aria-label="Programar visita">+</button>
@@ -879,9 +881,9 @@ async function storeSupabase(cfg) {
       if (!correo) return "sesion";
       /* Las políticas dejan ver únicamente la fila propia de cada tabla. */
       const { data: eds, error: eEd } = await sb.from("editores").select("*");
-      if (eds && eds.length) return { rol: "editor", admin: !!eds[0].admin };
+      if (eds && eds.length) return { rol: "editor", admin: !!eds[0].admin, correo };
       const { data: ins } = await sb.from("inspectores").select("nombre");
-      if (ins && ins.length) return { rol: "inspector", nombre: ins[0].nombre };
+      if (ins && ins.length) return { rol: "inspector", nombre: ins[0].nombre, correo };
       /* Se devuelve el correo de la sesión: sin verlo no hay forma de saber
          si falta registrarlo o si se entró con otra cuenta. */
       return { rol: null, correo, fallo: eEd ? eEd.message : "" };
@@ -941,7 +943,7 @@ function guardarPadronCache(filas) {
 }
 const S = {
   reales: [], visitas: HAY_SERVIDOR ? [] : EJEMPLO, ejemplo: !HAY_SERVIDOR, cargando: HAY_SERVIDOR, deCache: false,
-  store: null, edicion: false, rol: "lector", yo: "", roster: [],
+  store: null, edicion: false, rol: "lector", yo: "", correoSesion: "", roster: [],
   vista: "mes", cursor: hoyISO(), personas: [], filtroRes: "", verPasadas: false, hoy: hoyISO(),
   desde: null, soloNovedades: false, admin: false, padron: [], buscar: ""
 };
@@ -1107,7 +1109,10 @@ function render() {
   const evs = visibles();
   const calendario = S.vista === "mes" || S.vista === "semana" || S.vista === "dia";
   $("#rotulo").textContent = rotulo().replace(/^./, (c) => c.toUpperCase());
-  $("#btn-edicion").textContent = S.edicion ? (S.rol === "editor" ? "Edición activa · salir" : (S.yo || "Sesión") + " · salir") : "Activar edición";
+  $("#btn-edicion").textContent = S.edicion ? "Cerrar sesión" : "Activar edición";
+  $("#btn-edicion").title = S.edicion
+    ? "Sesión abierta" + (S.yo ? " de " + S.yo : (S.correoSesion ? " de " + S.correoSesion : "")) + ". Toca para cerrarla."
+    : "Identifícate para poder editar la agenda";
   $("#btn-edicion").classList.toggle("activo", S.edicion);
   $("#btn-nueva").hidden = !puedeTodo();
   $("#btn-voz-nueva").hidden = !(puedeTodo() && HAY_VOZ);
@@ -1115,7 +1120,9 @@ function render() {
   $("#fab").hidden = !puedeTodo();
   $("#btn-admin").hidden = !S.admin;
   $("#m-admin").hidden = !S.admin;
-  $("#m-edicion").textContent = S.edicion ? "Cerrar sesión" : "Activar edición";
+  $("#m-edicion").textContent = S.edicion
+    ? "Cerrar sesión" + (S.yo || S.correoSesion ? " (" + (S.yo || S.correoSesion) + ")" : "")
+    : "Activar edición";
   $("#btn-hoy").hidden = !calendario;
   $(".flechas").hidden = !calendario;
 
@@ -1151,6 +1158,11 @@ function render() {
   /* Para poder saber, desde el propio aparato, qué versión se está usando
      y si el padrón llegó con la clase de obra. */
   $("#m-actualizar").textContent = "Traer la última versión (ahora: v" + VERSION + ")";
+  /* La salida tiene que verse sin abrir ningún menú: en el celular la
+     barra superior esconde el botón de edición. */
+  const quien = S.yo || S.correoSesion;
+  $("#pie-sesion").hidden = !S.edicion;
+  $("#pie-sesion").textContent = S.edicion ? (quien ? "Sesión de " + quien + " · cerrar" : "Cerrar sesión") : "";
   const conTipo = S.padron.filter((e) => TIPOS[e.tipo]).length;
   $("#pie-version").textContent = "v" + VERSION
     + (S.padron.length ? " · padrón " + S.padron.length + " (" + conTipo + " con tipo)" : "")
@@ -2153,6 +2165,7 @@ async function tomarRol() {
   S.edicion = !!rol;
   S.rol = rol ? rol.rol : "lector";
   S.yo = rol && rol.nombre ? rol.nombre : "";
+  S.correoSesion = (rol && rol.correo) || (r && r.correo) || S.correoSesion;
   S.admin = !!(rol && rol.admin);
   if (S.store.recargar) await S.store.recargar();
   if (S.admin && S.store.padron) { try { S.padron = await S.store.padron(); guardarPadronCache(S.padron); } catch (e) {} }
@@ -2453,6 +2466,7 @@ function traerUltimaVersion() {
 }
 $("#m-actualizar").addEventListener("click", traerUltimaVersion);
 $("#pie-version").addEventListener("click", traerUltimaVersion);
+$("#pie-sesion").addEventListener("click", () => $("#btn-edicion").click());
 document.addEventListener("click", (ev) => {
   if (!$("#menu-mas").hidden && !ev.target.closest("#menu-mas, #btn-mas")) {
     $("#menu-mas").hidden = true;
@@ -2466,32 +2480,35 @@ $("#btn-sig").addEventListener("click", () => { S.cursor = S.vista === "mes" ? s
 $("#btn-nueva").addEventListener("click", () => abrir(null, S.vista === "mes" ? S.cursor : S.cursor, "09:00"));
 $("#btn-edicion").addEventListener("click", async () => {
   if (S.edicion) {
-    S.edicion = false; S.rol = "lector"; S.yo = "";
-    if (S.store.cliente && CONFIG.acceso.privado) { await S.store.cliente.auth.signOut(); olvidarCache(); toast("Sesión cerrada."); }
+    /* Cerrar de verdad: si solo se apagara la edición en pantalla, la
+       sesión seguiría abierta en el aparato —un problema en un celular
+       compartido— y al volver a entrar no se releería el rol. */
+    S.edicion = false; S.rol = "lector"; S.yo = ""; S.admin = false; S.correoSesion = "";
+    if (S.store.cliente) {
+      try { await S.store.cliente.auth.signOut(); } catch (e) { console.warn(e); }
+      olvidarCache();
+    }
+    toast("Sesión cerrada.");
     render();
     if (CONFIG.acceso.privado) abrirAcceso("clave");
     return;
   }
   if (!S.store) return;
   const b = $("#btn-edicion"); b.disabled = true; b.textContent = "Verificando…";
+  /* Se comprueba primero si hay sesión; el reparto de roles lo hace
+     tomarRol(), que es el único sitio donde se decide quién es quién. */
   let r = false;
   try { r = await S.store.probarEdicion(); } catch (e) { r = false; }
   b.disabled = false;
-  if (r === "sesion") { abrirAcceso(); return; }
-  const rol = r === true ? { rol: "editor" } : (r && r.rol ? r : null);
-  S.edicion = !!rol;
-  S.rol = rol ? rol.rol : "lector";
-  S.yo = rol && rol.nombre ? rol.nombre : "";
-  if (!rol) {
-    const quien = r && r.correo ? r.correo : "";
-    S.correoSesion = quien;
+  if (r === "sesion") { render(); return abrirAcceso(); }
+  await tomarRol();
+  if (S.rol === "lector") {
+    const quien = (r && r.correo) || S.correoSesion;
     toast(r && r.fallo
       ? "No se pudo comprobar el permiso: " + r.fallo
       : (quien ? "«" + quien + "» no figura entre los editores: el acceso queda como solo lectura."
                : "Tu correo no está registrado: el acceso queda como solo lectura."));
-  }
-  else if (S.rol === "inspector") toast("Sesión de " + S.yo + ": puedes registrar el estado de tus visitas.");
-  render();
+  } else toast(saludo(S.rol));
 });
 document.addEventListener("keydown", (ev) => {
   if (ev.target.closest("input, textarea, select") || $("#dlg").open) return;
