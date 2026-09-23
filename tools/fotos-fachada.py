@@ -96,11 +96,22 @@ def codigo_de(carpeta, validos):
     return None
 
 
+def orden_natural(nombre):
+    """Para que _2 vaya antes que _10: los números pesan como números."""
+    return [int(p) if p.isdigit() else p
+            for p in re.split(r"(\d+)", sin_tildes(nombre))]
+
+
 def elegir_foto(carpeta):
-    """Devuelve (archivo, motivo). Sin pistas, la primera por nombre."""
+    """Devuelve (archivo, motivo). Sin pistas, la primera toma.
+
+    Los nombres del proyecto son sistemáticos —PFINFRA_INFBR07-447_01.jpg—
+    y no dicen qué se ve; ahí la toma 01 es la vista general del predio,
+    que es justo lo que sirve para reconocerlo.
+    """
     fotos = sorted((f for f in carpeta.iterdir()
                     if f.is_file() and f.suffix.lower() in IMAGENES),
-                   key=lambda f: f.name.lower())
+                   key=lambda f: orden_natural(f.name))
     if not fotos:
         return None, "la carpeta no tiene fotos"
 
@@ -114,7 +125,7 @@ def elegir_foto(carpeta):
         for f in candidatas:
             if pista in sin_tildes(f.name):
                 return f, motivo
-    return candidatas[0], "sin pistas en el nombre: la primera"
+    return candidatas[0], "la primera toma"
 
 
 def reducir(origen, destino, ancho, calidad):
@@ -203,11 +214,11 @@ def main():
 
     copiadas = [f for f in filas if f["codigo"] in vistos and f["foto"]
                 and not f["motivo"].startswith("ya se hab")]
-    con_pista = sum(1 for f in copiadas if "sin pistas" not in f["motivo"])
+    con_pista = sum(1 for f in copiadas if f["motivo"] != "la primera toma")
     print("\nCarpetas «b.INFRA_SUPERFICIE» encontradas: %d" % len(filas))
     print("Códigos con foto copiada               : %d" % len(vistos))
-    print("  de esos, elegida por el nombre       : %d" % con_pista)
-    print("  de esos, la primera por no haber pista: %d" % (len(vistos) - con_pista))
+    print("  de esos, el nombre decía qué se ve   : %d" % con_pista)
+    print("  de esos, se tomó la primera toma     : %d" % (len(vistos) - con_pista))
     if validos:
         print("Códigos del padrón sin ninguna foto    : %d" % len(validos - set(vistos)))
     if not a.prueba:
