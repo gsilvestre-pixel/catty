@@ -2159,8 +2159,8 @@ $("#cambiar-modo").addEventListener("click", () => {
 });
 $("#a-cancelar").addEventListener("click", () => $("#dlg-acceso").close());
 
-async function tomarRol() {
-  const r = await S.store.probarEdicion();
+async function tomarRol(previo) {
+  const r = previo !== undefined ? previo : await S.store.probarEdicion();
   const rol = r === true ? { rol: "editor" } : (r && r.rol ? r : null);
   S.edicion = !!rol;
   S.rol = rol ? rol.rol : "lector";
@@ -2546,6 +2546,15 @@ document.addEventListener("keydown", (ev) => {
   }
   store.escucha(aplicar);
   render();
+  /* Si la sesión sigue abierta en este aparato, se retoma el rol sin
+     pedir nada: quien ya entró no tiene por qué volver a identificarse
+     en cada recarga, y así la salida queda a la vista. */
+  if (store.tipo === "supabase" && store.probarEdicion) {
+    try {
+      const r = await store.probarEdicion();
+      if (r && r !== "sesion") await tomarRol(r);
+    } catch (e) { console.warn("sesión:", e.message || e); }
+  }
   /* La próxima vez, "novedades" se cuenta desde este momento. */
   setTimeout(() => { try { localStorage.setItem("agenda-visto", new Date().toISOString()); } catch (e) {} }, 4000);
   if (store.tipo === "supabase" && CONFIG.acceso.privado) {
